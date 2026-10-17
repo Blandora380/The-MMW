@@ -12,7 +12,7 @@ jobs:
       - run: export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin; yes | sdkmanager --licenses >/dev/null; sdkmanager "platforms;android-35" "build-tools;36.1.0" "ndk;30.0.16248370" "cmake;4.1.2"
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 9.1
+          gradle-version: 9.1.0
       - run: gradle -p android :sekaiLive:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
