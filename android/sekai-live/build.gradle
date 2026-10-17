@@ -3,6 +3,7 @@ plugins {
 }
 
 android {
+    packaging { jniLibs { pickFirsts.add("**/libc++_shared.so") } }
     namespace 'com.mikumikuworld.editor'
     compileSdk 35
     buildToolsVersion '36.1.0'
