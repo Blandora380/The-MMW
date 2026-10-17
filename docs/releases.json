@@ -1,0 +1,366 @@
+[
+  {
+    "tag": "android-20261013-154718",
+    "platform": "Android",
+    "build_timestamp": "2026-10-13T15:47:18+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261013-154718",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-debug.apk",
+        "sha256": "fcb345232d13ba0c3032b61aaacfc0f878d8cfe3df637dfc0977b7f0217f159e",
+        "bytes": 38479408
+      }
+    ]
+  },
+  {
+    "tag": "android-20261013-195110",
+    "platform": "Android",
+    "build_timestamp": "2026-10-13T19:51:10+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261013-195110",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-export-fix-signed.apk",
+        "sha256": "d85a02b7b4cccdcbbd47657f92fe03af1359e3f50cc44320acb23bae0596abaf",
+        "bytes": 73780414
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-122714",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T12:27:14+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-122714",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-jacket-fix-signed.apk",
+        "sha256": "8a09183e3f2a3013b8780f4b062246918194fc961e4d79164cf2034636031894",
+        "bytes": 73780414
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-125737",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T12:57:37+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-125737",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-mp4-final.apk",
+        "sha256": "04e30a7f75499617ad99b7ea91ba6b25ce248710cfa2ce1d695bde6ea49f13a4",
+        "bytes": 73911486
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-130435",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T13:04:35+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-130435",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-touch-final.apk",
+        "sha256": "4fcec6ae2f042f9c570c0f8f14f0aa155993f22adc4ad177ade75e83fdcabd03",
+        "bytes": 73915582
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-131305",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T13:13:05+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-131305",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-fixed-final.apk",
+        "sha256": "a1326bd52c009ef47ec04817695fb377c81844facf5c141beee72ed031ed0f87",
+        "bytes": 73919758
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-132925",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T13:29:25+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-132925",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-diagnostic-final.apk",
+        "sha256": "69d90e8d64dda082318e3f156449992cda86d2a7b44116141224859def7b67e7",
+        "bytes": 73919758
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-140143",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T14:01:43+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-140143",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-Android.apk",
+        "sha256": "0589b2d87e549f3e276e96437e1350df27e1d9a708002483c3717b4a03dc9716",
+        "bytes": 73919758
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-141040",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T14:10:40+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-141040",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-warning-fixed.apk",
+        "sha256": "74a09c1c5744a5de3a29d28e3ec61c811cba7404a46871b5946dc7a94b312d61",
+        "bytes": 74267995
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-145246",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T14:52:46+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-145246",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-mp4-return-fix.apk",
+        "sha256": "8f8fb89e0275dfc41f4450388137ebe7114fba7193c59defc5c592a09bc5d2ce",
+        "bytes": 74267995
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-185340",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T18:53:40+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-185340",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-hud-export-fix.apk",
+        "sha256": "feb6ffd36538481b5b0a155ee9d21ec19945521ed304be778ceb14957a6178e7",
+        "bytes": 74267995
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-191451",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T19:14:51+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-191451",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-export-speed.apk",
+        "sha256": "de7310c8e0982d270978d34943452cdee916c8721857cb0dcff6260b89aa2a2d",
+        "bytes": 74272091
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-193203",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T19:32:03+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-193203",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-hud-scale.apk",
+        "sha256": "821d9f291e34187d9138c114446101c4e8372022efde61aacd8c1fb4ddb10af6",
+        "bytes": 74272091
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-200635",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T20:06:35+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-200635",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-export-video-player.apk",
+        "sha256": "dd5d1c872bb6a48054e29cd0df5c900c80e0b296a695c27251b71d959612dcc2",
+        "bytes": 60803032
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-201053",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T20:10:53+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-201053",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-scorebar-scale.apk",
+        "sha256": "421975225866b32bedbb23eacf00d29c0c3ab23c93bb6985688206142a54f2f6",
+        "bytes": 60803032
+      }
+    ]
+  },
+  {
+    "tag": "android-20261014-202538",
+    "platform": "Android",
+    "build_timestamp": "2026-10-14T20:25:38+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261014-202538",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-startup-fix.apk",
+        "sha256": "546c5ad64cdec65cbb358e0b0d2170f576e29707b319cd917764ed824ba16402",
+        "bytes": 60930008
+      }
+    ]
+  },
+  {
+    "tag": "android-20261015-121834",
+    "platform": "Android",
+    "build_timestamp": "2026-10-15T12:18:34+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261015-121834",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-touch-fix.apk",
+        "sha256": "f198d0a9fbe05aa04977a455839709bc5d34e488dbd8c5a174e88a6e5fa95585",
+        "bytes": 60930008
+      }
+    ]
+  },
+  {
+    "tag": "android-20261015-122246",
+    "platform": "Android",
+    "build_timestamp": "2026-10-15T12:22:46+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261015-122246",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-long-press.apk",
+        "sha256": "65c6f420a3ae3334ce8bc8f2c7479cb6173de4a743be6ee39390308830dd817c",
+        "bytes": 60930008
+      }
+    ]
+  },
+  {
+    "tag": "android-20261015-122706",
+    "platform": "Android",
+    "build_timestamp": "2026-10-15T12:27:06+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261015-122706",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-pinch-zoom.apk",
+        "sha256": "0413a641e43dde73e60fde486261318caf30be001d66d2deb673d8d7df896872",
+        "bytes": 60930008
+      }
+    ]
+  },
+  {
+    "tag": "android-20261015-124105",
+    "platform": "Android",
+    "build_timestamp": "2026-10-15T12:41:05+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261015-124105",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-onboarding.apk",
+        "sha256": "375a9498614c2c0f671535f7c2c8a3f93c857f31b56bc6019efa655a376528f1",
+        "bytes": 60934104
+      }
+    ]
+  },
+  {
+    "tag": "android-20261015-125748",
+    "platform": "Android",
+    "build_timestamp": "2026-10-15T12:57:48+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261015-125748",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-dialog-scale.apk",
+        "sha256": "7da8de2fa267662ed473d3fffccbe69007df90e6e70ea1acdd67344d9f90da95",
+        "bytes": 60934104
+      }
+    ]
+  },
+  {
+    "tag": "ios-20261016-125700",
+    "platform": "iOS",
+    "build_timestamp": "2026-10-16T12:57:00+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/ios-20261016-125700",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-4.3.3-1_beta-unsigned.ipa",
+        "sha256": "852afe291788601a098a42833077efc91f7efa3875348d02b46945befb8c45e6",
+        "bytes": 29428133
+      }
+    ]
+  },
+  {
+    "tag": "windows-20261016-194024",
+    "platform": "Windows",
+    "build_timestamp": "2026-10-16T19:40:24+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/windows-20261016-194024",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-4.3.3-1_beta-Windows.zip",
+        "sha256": "842ef1156802dc21bb642e7965265e27c736785d4a7d301921393a4ca27a91f9",
+        "bytes": 33154316
+      }
+    ]
+  },
+  {
+    "tag": "ios-package-20261016-195754",
+    "platform": "iOS",
+    "build_timestamp": "2026-10-16T19:57:54+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/ios-package-20261016-195754",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-iOS-unsigned.zip",
+        "sha256": "c3bf62de7a93a8786c3a25d7d5496d6b124a02d58c6fcae1ed1a5e33e509b242",
+        "bytes": 29367628
+      }
+    ]
+  },
+  {
+    "tag": "android-20261016-195908",
+    "platform": "Android",
+    "build_timestamp": "2026-10-16T19:59:08+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261016-195908",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-android-update.apk",
+        "sha256": "e6324ea81db304733891568aca463f36a8ac056ed74ad909b600a421138b3d3d",
+        "bytes": 65919834
+      }
+    ]
+  },
+  {
+    "tag": "sekai-live-20261016-201629",
+    "platform": "Android",
+    "build_timestamp": "2026-10-16T20:16:29+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/sekai-live-20261016-201629",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-sekai-live.apk",
+        "sha256": "2b92d71c9253f2aa4c6b17cdd16220b764982526dbee63e6b219816c3a82b63c",
+        "bytes": 49305686
+      }
+    ]
+  },
+  {
+    "tag": "android-20261017-072939",
+    "platform": "Android",
+    "build_timestamp": "2026-10-17T07:29:39+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/android-20261017-072939",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-android-update.apk",
+        "sha256": "96e2c972273134ed9e1ad5119f4406ce6185fe34b7e05ad0d357cbccec47c882",
+        "bytes": 65919992
+      }
+    ]
+  },
+  {
+    "tag": "sekai-live-20261017-072941",
+    "platform": "Android",
+    "build_timestamp": "2026-10-17T07:29:41+07:00",
+    "url": "https://github.com/youkai-ux/MikuMikuWorld4Android/releases/tag/sekai-live-20261017-072941",
+    "assets": [
+      {
+        "name": "MikuMikuWorld-sekai-live.apk",
+        "sha256": "2f83a1ad143b4c8e8f3be9a46280089f011ec24dd828a418e709c9236ffbeed7",
+        "bytes": 49305686
+      }
+    ]
+  }
+]

@@ -1,0 +1,875 @@
+#include "Application.h"
+#include "ApplicationConfiguration.h"
+#if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
+#include "AndroidFileDialog.h"
+#endif
+#include "File.h"
+#include "UI.h"
+#include "Constants.h"
+#include "Utilities.h"
+#include "ImageCrop.h"
+#include "NativeScoreSerializer.h"
+#include "ScoreSerializeWindow.h"
+#include <filesystem>
+#include <cstdlib>
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
+namespace MikuMikuWorld
+{
+	static MultiInputBinding* timelineModeBindings[] =
+	{
+		&config.input.timelineSelect,
+		&config.input.timelineTap,
+		&config.input.timelineHold,
+		&config.input.timelineHoldMid,
+		&config.input.timelineFlick,
+		&config.input.timelineCritical,
+		&config.input.timelineFriction,
+		&config.input.timelineGuide,
+		&config.input.timelineBpm,
+		&config.input.timelineTimeSignature,
+		&config.input.timelineHiSpeed,
+		&config.input.timelineSEVolume
+	};
+
+	ScoreEditor::ScoreEditor() : presetManager(Application::getUserDataDir() + "library")
+	{
+		renderer = std::make_unique<Renderer>();
+
+		context.audio.initializeAudioEngine();
+		context.audio.setMasterVolume(config.masterVolume);
+		context.audio.setMusicVolume(config.bgmVolume);
+		context.audio.setSoundEffectsVolume(config.seVolume);
+		context.audio.loadSoundEffects();
+		context.audio.setSoundEffectsProfileIndex(config.seProfileIndex);
+
+		timeline.setDivision(config.division);
+		timeline.setZoom(config.zoom);
+
+		autoSavePath = Application::getUserDataDir() + "auto_save";
+		autoSaveTimer.reset();
+
+		preview.loadNoteEffects(context.scorePreviewDrawData.effectView);
+	}
+
+	void ScoreEditor::writeSettings()
+	{
+		config.masterVolume = context.audio.getMasterVolume();
+		config.bgmVolume = context.audio.getMusicVolume();
+		config.seVolume = context.audio.getSoundEffectsVolume();
+
+		config.division = timeline.getDivision();
+		config.zoom = timeline.getZoom();
+	}
+
+	void ScoreEditor::uninitialize()
+	{
+		context.audio.uninitializeAudioEngine();
+		timeline.background.dispose();
+	}
+
+	void ScoreEditor::update()
+	{
+		if (!isFullScreenPreview())
+		{
+			drawMenubar();
+			drawToolbar();
+		}
+
+		if (!ImGui::GetIO().WantCaptureKeyboard && !mp4ExportWindow.isExporting())
+		{
+			if (ImGui::IsAnyPressed(config.input.create)) Application::windowState.resetting = true;
+			if (ImGui::IsAnyPressed(config.input.open))
+			{
+				Application::windowState.resetting = true;
+				Application::windowState.shouldPickScore = true;
+			}
+
+			if (ImGui::IsAnyPressed(config.input.openSettings)) settingsWindow.open = true;
+			if (ImGui::IsAnyPressed(config.input.openHelp)) help();
+			if (ImGui::IsAnyPressed(config.input.save)) trySave(context.workingData.filename);
+			if (ImGui::IsAnyPressed(config.input.saveAs)) saveAs();
+			if (ImGui::IsAnyPressed(config.input.exportScore)) exportScore();
+			if (ImGui::IsAnyPressed(config.input.togglePlayback)) timeline.setPlaying(context, !timeline.isPlaying());
+			if (ImGui::IsAnyPressed(config.input.stop)) timeline.stop(context);
+			if (ImGui::IsAnyPressed(config.input.previousTick, true)) timeline.previousTick(context);
+			if (ImGui::IsAnyPressed(config.input.nextTick, true)) timeline.nextTick(context);
+			if (ImGui::IsAnyPressed(config.input.togglePreviewFullWindow, false)) preview.setFullWindow(!preview.isFullWindow());
+
+			if (!preview.isFullWindow())
+			{
+				if (ImGui::IsAnyPressed(config.input.selectAll)) context.selectAll();
+				if (ImGui::IsAnyPressed(config.input.deleteSelection))
+				{
+					const bool deletedHiSpeed = timeline.deleteSelectedHiSpeed(context);
+					const bool deletedSEVolume = timeline.deleteSelectedSEVolume(context);
+					if (!deletedHiSpeed && !deletedSEVolume) context.deleteSelection();
+				}
+				if (ImGui::IsAnyPressed(config.input.cutSelection) && !timeline.cutSelectedHiSpeed(context) && !timeline.cutSelectedSEVolume(context)) context.cutSelection();
+				if (ImGui::IsAnyPressed(config.input.copySelection) && !timeline.copySelectedHiSpeed(context) && !timeline.copySelectedSEVolume(context)) context.copySelection();
+				if (ImGui::IsAnyPressed(config.input.paste) && !timeline.pasteHiSpeed(context, false) && !timeline.pasteSEVolume(context, false)) context.paste(false);
+				if (ImGui::IsAnyPressed(config.input.flipPaste) && !timeline.pasteHiSpeed(context, true) && !timeline.pasteSEVolume(context, true)) context.paste(true);
+				if (ImGui::IsAnyPressed(config.input.cancelPaste)) context.cancelPaste();
+				if (ImGui::IsAnyPressed(config.input.flip)) context.flipSelection();
+				if (ImGui::IsAnyPressed(config.input.undo)) context.undo();
+				if (ImGui::IsAnyPressed(config.input.redo)) context.redo();
+				if (ImGui::IsAnyPressed(config.input.zoomOut, true)) timeline.setZoom(timeline.getZoom() - 0.25f);
+				if (ImGui::IsAnyPressed(config.input.zoomIn, true)) timeline.setZoom(timeline.getZoom() + 0.25f);
+				if (ImGui::IsAnyPressed(config.input.decreaseNoteSize, true)) edit.noteWidth = std::clamp(edit.noteWidth - 1, MIN_NOTE_WIDTH, MAX_NOTE_WIDTH);
+				if (ImGui::IsAnyPressed(config.input.increaseNoteSize, true)) edit.noteWidth = std::clamp(edit.noteWidth + 1, MIN_NOTE_WIDTH, MAX_NOTE_WIDTH);
+				if (ImGui::IsAnyPressed(config.input.shrinkDown)) context.shrinkSelection(Direction::Down);
+				if (ImGui::IsAnyPressed(config.input.shrinkUp)) context.shrinkSelection(Direction::Up);
+				if (ImGui::IsAnyPressed(config.input.connectHolds)) context.connectHoldsInSelection();
+				if (ImGui::IsAnyPressed(config.input.splitHold)) context.splitHoldInSelection();
+
+				for (int i = 0; i < (int)TimelineMode::TimelineModeMax; ++i)
+					if (ImGui::IsAnyPressed(*timelineModeBindings[i])) timeline.changeMode((TimelineMode)i, edit);
+
+				if (ImGui::IsAnyPressed(config.input.insertSkill)) timeline.insertSkill(context, context.currentTick);
+				if (ImGui::IsAnyPressed(config.input.insertFever)) timeline.beginInsertFever(context, context.currentTick);
+			}
+		}
+
+		if (config.matchTimelineSizeToScreen)
+		{
+			int laneWidth = static_cast<int>(timeline.getWidth() * 0.45f / NUM_LANES);
+			timeline.laneWidth = std::clamp(laneWidth, MIN_LANE_WIDTH, MAX_LANE_WIDTH);
+		}
+		else
+		{
+			timeline.laneWidth = config.timelineWidth;
+		}
+
+		timeline.notesHeight = config.matchNotesSizeToTimeline ? std::clamp(static_cast<int>(timeline.laneWidth), MIN_NOTES_HEIGHT, MAX_NOTES_HEIGHT) : config.notesHeight;
+
+		if (config.backgroundBrightness != timeline.background.getBrightness())
+			timeline.background.setBrightness(config.backgroundBrightness);
+
+		if (settingsWindow.isBackgroundChangePending)
+		{
+			static const std::string defaultBackgroundPath = Application::getAppDir() + "res/editor/default.png";
+			timeline.background.load(config.backgroundImage.empty() ? defaultBackgroundPath : config.backgroundImage);
+			settingsWindow.isBackgroundChangePending = false;
+		}
+
+		if (config.seProfileIndex != context.audio.getSoundEffectsProfileIndex())
+		{
+			context.audio.stopSoundEffects(false);
+			context.audio.setSoundEffectsProfileIndex(config.seProfileIndex);
+		}
+
+		if (settingsWindow.isEffectProfileChangePending)
+		{
+			preview.loadNoteEffects(context.scorePreviewDrawData.effectView);
+			debugEffectView.loadEffects();
+			settingsWindow.isEffectProfileChangePending = false;
+		}
+
+		if (propertiesWindow.isPendingLoadMusic)
+		{
+			asyncLoadMusic(propertiesWindow.pendingLoadMusicFilename);
+			propertiesWindow.isPendingLoadMusic = false;
+			propertiesWindow.pendingLoadMusicFilename.clear();
+		}
+
+		if (config.autoSaveEnabled && autoSaveTimer.elapsedMinutes() >= config.autoSaveInterval)
+		{
+			autoSave();
+			autoSaveTimer.reset();
+		}
+
+		if (recentFileNotFoundDialog.update() == DialogResult::Yes)
+		{
+			if (isArrayIndexInBounds(recentFileNotFoundDialog.removeIndex, config.recentFiles))
+				config.recentFiles.erase(config.recentFiles.begin() + recentFileNotFoundDialog.removeIndex);
+		}
+
+		settingsWindow.update();
+		aboutDialog.update();
+		mp4ExportWindow.update(context, timeline, preview);
+		serializeWindow.update(*this, context, timeline);
+
+		const bool timeline_just_created = (ImGui::FindWindowByName("###notes_timeline") == NULL);
+		ImGui::Begin(IMGUI_TITLE(ICON_FA_MUSIC, "notes_timeline"), NULL, ImGuiWindowFlags_Static | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+		ImGuiID dockId = ImGui::GetWindowDockID();
+		timeline.update(context, edit, renderer.get());
+		mp4ExportWindow.prepareFrame(context, timeline, preview);
+		ImGui::End();
+
+		ImGuiWindowFlags previewWindowFlags =
+			ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_NoScrollbar |
+			ImGuiWindowFlags_NoScrollWithMouse;
+
+		ImGui::SetNextWindowDockID(dockId, ImGuiCond_FirstUseEver);
+		if (isFullScreenPreview())
+		{
+			ImGuiViewport* viewport = ImGui::GetMainViewport();
+			ImGui::SetNextWindowPos(viewport->WorkPos);
+			ImGui::SetNextWindowSize(viewport->WorkSize);
+			ImGui::SetNextWindowViewport(viewport->ID);
+			previewWindowFlags |= ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize;
+
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 0 });
+
+			ImGui::Begin(IMGUI_TITLE(ICON_FA_OBJECT_GROUP, "score_preview_full"), NULL, previewWindowFlags);
+			ImGui::PopStyleVar(2);
+		}
+		else
+		{
+			ImGui::Begin(IMGUI_TITLE(ICON_FA_OBJECT_GROUP, "score_preview"), NULL, previewWindowFlags);
+		}
+
+		preview.update(context, renderer.get());
+		mp4ExportWindow.captureFrame(context, timeline, preview);
+		preview.updateUI(timeline, context);
+		ImGui::End();
+
+		if (timeline_just_created) ImGui::SetWindowFocus("###notes_timeline");
+
+		if (config.debugEnabled)
+		{
+			debugWindow.update(context, timeline);
+			debugEffectView.update(renderer.get());
+		}
+
+		if (ImGui::Begin(IMGUI_TITLE(ICON_FA_ALIGN_LEFT, "chart_properties"), NULL, ImGuiWindowFlags_Static))
+		{
+			propertiesWindow.update(context);
+		}
+		ImGui::End();
+
+		if (ImGui::Begin(IMGUI_TITLE(ICON_FA_WRENCH, "options"), NULL, ImGuiWindowFlags_Static))
+		{
+			optionsWindow.update(context, edit, timeline.getMode());
+		}
+		ImGui::End();
+
+		if (ImGui::Begin(IMGUI_TITLE(ICON_FA_DRAFTING_COMPASS, "presets"), NULL, ImGuiWindowFlags_Static))
+		{
+			presetsWindow.update(context, presetManager);
+		}
+		ImGui::End();
+
+#ifdef _DEBUG
+		if (showImGuiDemoWindow)
+			ImGui::ShowDemoWindow(&showImGuiDemoWindow);
+#endif
+	}
+
+	size_t ScoreEditor::updateRecentFilesList(const std::string& entry)
+	{
+		while (config.recentFiles.size() >= maxRecentFilesEntries)
+			config.recentFiles.pop_back();
+
+		// Remove the entry (if found) to the beginning of the vector
+		auto it = std::find(config.recentFiles.begin(), config.recentFiles.end(), entry);
+		if (it != config.recentFiles.end())
+			config.recentFiles.erase(it);
+
+		config.recentFiles.insert(config.recentFiles.begin(), entry);
+		return config.recentFiles.size();
+	}
+
+	void ScoreEditor::reset()
+	{
+		timeline.setPlaying(context, false);
+
+		context.score = {};
+		context.workingData = {};
+		context.history.clear();
+		context.scoreStats.reset();
+		context.scorePreviewDrawData.clear();
+		context.audio.disposeMusic();
+		context.waveformL.clear();
+		context.waveformR.clear();
+		context.clearSelection();
+
+		// New score; nothing to save
+		context.upToDate = true; 
+
+		UI::setWindowTitle(windowUntitled);
+	}
+
+	void ScoreEditor::loadScore(std::string filename)
+	{
+		if (!IO::File::exists(filename))
+			return;
+
+		timeline.setPlaying(context, false);
+		serializeWindow.deserialize(filename);
+	}
+
+	void ScoreEditor::loadMusic(std::string filename)
+	{
+		propertiesWindow.isLoadingMusic = true;
+		context.waveformL.clear();
+		context.waveformR.clear();
+		
+		Result result = context.audio.loadMusic(filename);
+		if (result.isOk() || filename.empty())
+		{
+			context.workingData.musicFilename = filename;
+		}
+		else
+		{
+			std::string errorMessage = IO::formatString("%s\n%s: %s\n%s",
+				getString("error_load_music_file"),
+				getString("music_file"),
+				filename.c_str(),
+				result.getMessage().c_str()
+			);
+
+			IO::messageBox(APP_NAME, errorMessage, IO::MessageBoxButtons::Ok, IO::MessageBoxIcon::Error, Application::windowState.windowHandle);
+		}
+		
+		context.waveformL.generateMipChainsFromSampleBuffer(context.audio.musicBuffer, 0);
+		context.waveformR.generateMipChainsFromSampleBuffer(context.audio.musicBuffer, 1);
+
+		if (timeline.isPlaying())
+		{
+			bool prevPauseBehaviour = config.returnToLastSelectedTickOnPause;
+			config.returnToLastSelectedTickOnPause = false;
+			timeline.setPlaying(context, false);
+			timeline.setPlaying(context, true);
+
+			config.returnToLastSelectedTickOnPause = prevPauseBehaviour;
+		}
+
+		propertiesWindow.isLoadingMusic = false;
+	}
+
+	void ScoreEditor::asyncLoadMusic(std::string filename)
+	{
+		if (loadMusicFuture.valid())
+			loadMusicFuture.get();
+		
+		loadMusicFuture = std::async(&ScoreEditor::loadMusic, this, filename);
+	}
+
+	void ScoreEditor::open()
+	{
+		IO::FileDialog fileDialog{};
+		fileDialog.parentWindowHandle = Application::windowState.windowHandle;
+		fileDialog.title = "Open Chart";
+		fileDialog.filters = {
+			IO::combineFilters("All Supported Files",{ IO::mmwsFilter, IO::susFilter, IO::customScoreJsonFilter }),
+			IO::mmwsFilter,
+			IO::susFilter,
+			IO::customScoreJsonFilter,
+			IO::allFilter
+		};
+		
+		if (fileDialog.openFile() == IO::FileDialogResult::OK)
+			loadScore(fileDialog.outputFilename);
+	}
+
+	bool ScoreEditor::trySave(std::string filename)
+	{
+		return filename.empty() ? saveAs() : save(filename);
+	}
+
+	bool ScoreEditor::save(std::string filename)
+	{
+		try
+		{
+			context.score.metadata = context.workingData.toScoreMetadata();
+			NativeScoreSerializer().serialize(context.score, filename);
+#if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
+			if (!AndroidFileDialog_Commit(filename))
+				throw std::runtime_error("Could not save the document to its Android location.");
+#endif
+
+			UI::setWindowTitle(IO::File::getFilename(filename));
+			context.upToDate = true;
+		}
+		catch (const std::exception& err)
+		{
+			IO::messageBox(
+				APP_NAME,
+				IO::formatString("%s\n%s: %s", getString("error_save_score_file"), getString("error"), err.what()),
+				IO::MessageBoxButtons::Ok,
+				IO::MessageBoxIcon::Error,
+				Application::windowState.windowHandle
+			);
+
+			return false;
+		}
+
+		return true;
+	}
+
+	bool ScoreEditor::saveAs()
+	{
+		IO::FileDialog fileDialog{};
+		fileDialog.title = "Save Chart";
+		fileDialog.filters = { IO::mmwsFilter };
+		fileDialog.defaultExtension = "mmws";
+		fileDialog.parentWindowHandle = Application::windowState.windowHandle;
+		fileDialog.inputFilename = IO::File::getFilenameWithoutExtension(context.workingData.filename);
+
+		if (fileDialog.saveFile() == IO::FileDialogResult::OK)
+		{
+			context.workingData.filename = fileDialog.outputFilename;
+			bool saved = save(context.workingData.filename);
+			if (saved)
+				updateRecentFilesList(fileDialog.outputFilename);
+
+			return saved;
+		}
+
+		return false;
+	}
+
+	void ScoreEditor::exportScore()
+	{
+		serializeWindow.serialize(context);
+	}
+
+	void ScoreEditor::drawMenubar()
+	{
+		ImGui::BeginMainMenuBar();
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 2));
+
+		if (ImGui::BeginMenu(getString("file")))
+		{
+			if (ImGui::MenuItem(getString("new"), ToShortcutString(config.input.create)))
+				Application::windowState.resetting = true;
+
+			if (ImGui::MenuItem(getString("open"), ToShortcutString(config.input.open)))
+			{
+				Application::windowState.resetting = true;
+				Application::windowState.shouldPickScore = true;
+			}
+
+			if (ImGui::BeginMenu(getString("open_recent")))
+			{
+				for (size_t index = 0; index < config.recentFiles.size(); index++)
+				{
+					const std::string& entry = config.recentFiles[index];
+					if (ImGui::MenuItem(entry.c_str()))
+					{
+						if (IO::File::exists(entry))
+						{
+							Application::windowState.resetting = true;
+							Application::pendingLoadScoreFile = entry;
+						}
+						else
+						{
+							recentFileNotFoundDialog.removeFilename = entry;
+							recentFileNotFoundDialog.removeIndex = index;
+							recentFileNotFoundDialog.open = true;
+						}
+					}
+				}
+
+				ImGui::Separator();
+				if (ImGui::MenuItem(getString("clear"), nullptr, false, !config.recentFiles.empty()))
+					config.recentFiles.clear();
+
+				ImGui::EndMenu();
+			}
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("save"), ToShortcutString(config.input.save)))
+				trySave(context.workingData.filename);
+
+			if (ImGui::MenuItem(getString("save_as"), ToShortcutString(config.input.saveAs)))
+				saveAs();
+
+			if (ImGui::MenuItem(getString("export"), ToShortcutString(config.input.exportScore)))
+				exportScore();
+
+			if (ImGui::MenuItem(getString("export_mp4")))
+				mp4ExportWindow.show();
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("exit"), ToShortcutString(ImGuiKey_F4, ImGuiMod_Alt)))
+				Application::windowState.closing = true;
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu(getString("edit")))
+		{
+			if (ImGui::MenuItem(getString("undo"), ToShortcutString(config.input.undo), false, context.history.hasUndo()))
+				context.undo();
+
+			if (ImGui::MenuItem(getString("redo"), ToShortcutString(config.input.redo), false, context.history.hasRedo()))
+				context.redo();
+
+			ImGui::Separator();
+			const bool hasHiSpeedSelection = timeline.hasSelectedHiSpeed(context);
+			const bool hasSEVolumeSelection = timeline.hasSelectedSEVolume(context);
+			const bool hasAnySelection = hasHiSpeedSelection || hasSEVolumeSelection || context.selectedNotes.size();
+			if (ImGui::MenuItem(getString("delete"), ToShortcutString(config.input.deleteSelection), false, hasAnySelection))
+			{
+				const bool deletedHiSpeed = timeline.deleteSelectedHiSpeed(context);
+				const bool deletedSEVolume = timeline.deleteSelectedSEVolume(context);
+				if (!deletedHiSpeed && !deletedSEVolume)
+					context.deleteSelection();
+			}
+
+			if (ImGui::MenuItem(getString("cut"), ToShortcutString(config.input.cutSelection), false, hasAnySelection))
+			{
+				if (!timeline.cutSelectedHiSpeed(context) && !timeline.cutSelectedSEVolume(context))
+					context.cutSelection();
+			}
+
+			if (ImGui::MenuItem(getString("copy"), ToShortcutString(config.input.copySelection), false, hasAnySelection))
+			{
+				if (!timeline.copySelectedHiSpeed(context) && !timeline.copySelectedSEVolume(context))
+					context.copySelection();
+			}
+
+			if (ImGui::MenuItem(getString("paste"), ToShortcutString(config.input.paste)))
+			{
+				if (!timeline.pasteHiSpeed(context, false) && !timeline.pasteSEVolume(context, false))
+					context.paste(false);
+			}
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("select_all"), ToShortcutString(config.input.selectAll)))
+				context.selectAll();
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("insert_skill"), ToShortcutString(config.input.insertSkill), nullptr, !timeline.isPlaying()))
+				timeline.insertSkill(context, context.currentTick);
+
+			if (ImGui::MenuItem(getString("insert_fever"), ToShortcutString(config.input.insertFever), nullptr, !timeline.isPlaying()))
+				timeline.beginInsertFever(context, context.currentTick);
+
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("settings"), ToShortcutString(config.input.openSettings)))
+				settingsWindow.open = true;
+
+			ImGui::EndMenu();
+		}
+		
+		if (ImGui::BeginMenu(getString("view")))
+		{
+			ImGui::MenuItem(getString("show_step_outlines"), NULL, &timeline.drawHoldStepOutlines);
+			ImGui::MenuItem(getString("hide_step_outlines_in_playback"), NULL, &config.hideStepOutlinesInPlayback);
+			ImGui::MenuItem(getString("cursor_auto_scroll"), NULL, &config.followCursorInPlayback);
+			ImGui::MenuItem(getString("return_to_last_tick"), NULL, &config.returnToLastSelectedTickOnPause);
+			ImGui::MenuItem(getString("draw_waveform"), NULL, &config.drawWaveform);
+			ImGui::MenuItem(getString("stop_at_end"), NULL, &config.stopAtEnd);
+			ImGui::MenuItem(getString("preview_draw_toolbar"), NULL, &config.pvDrawToolbar);
+			ImGui::MenuItem(getString("preview_draw_score_hud"), NULL, &config.pvDrawScoreHud);
+			ImGui::MenuItem(getString("preview_draw_score_add_animation"), NULL, &config.pvDrawScorePopup);
+			ImGui::MenuItem(getString("preview_draw_life_hud"), NULL, &config.pvDrawLifeHud);
+			ImGui::MenuItem(getString("preview_draw_combo"), NULL, &config.pvDrawCombo);
+			ImGui::MenuItem(getString("preview_draw_perfect"), NULL, &config.pvDrawPerfect);
+			
+			bool isPreviewFullScreen = isFullScreenPreview();
+			if (ImGui::MenuItem(getString("fullscreen_preview"), ToShortcutString(config.input.togglePreviewFullWindow), &isPreviewFullScreen))
+				preview.setFullWindow(isPreviewFullScreen);
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu(getString("presets")))
+		{
+			if (ImGui::MenuItem(getString("create_preset"), NULL, false, !context.selectedNotes.empty()))
+				presetsWindow.openCreatePresetDialog();
+			
+			if (ImGui::MenuItem(getString("import_preset"), NULL, false, true))
+				openImportPresetDialog();
+			
+			if (ImGui::MenuItem(getString("reload_presets"), NULL, false, true))
+			{
+				presetManager.presets.clear();
+				loadPresets();
+			}
+			
+			ImGui::Separator();
+			if (ImGui::MenuItem(getString("open_presets_folder"), NULL, false, true))
+			{
+				if (!std::filesystem::exists(presetManager.getPresetsPath()))
+					std::filesystem::create_directory(presetManager.getPresetsPath());
+#ifdef _WIN32
+				ShellExecuteW(0, 0, presetManager.getPresetsPath().c_str(), 0, 0, SW_SHOW);
+#elif defined(__APPLE__) && !defined(MIKUMIKUWORLD_IOS)
+				std::string command = "open \"" + presetManager.getPresetsPath().string() + "\"";
+				std::system(command.c_str());
+#endif
+			}
+			
+			ImGui::EndMenu();
+		}
+		
+		if (config.debugEnabled)
+		{
+			if (ImGui::BeginMenu(getString("debug")))
+			{
+#ifdef _DEBUG
+				ImGui::MenuItem("ImGui Demo Window", NULL, &showImGuiDemoWindow);
+#endif
+
+				if (ImGui::MenuItem("Auto Save"))
+					autoSave();
+
+				if (ImGui::MenuItem("Delete Old Auto Save (1)"))
+					deleteOldAutoSave(1);
+
+				if (ImGui::MenuItem("Delete Old Auto Save (Max)"))
+					deleteOldAutoSave(config.autoSaveMaxCount);
+
+				bool audioRunning = context.audio.isEngineStarted();
+				if (ImGui::MenuItem(audioRunning ? "Stop Audio" : "Start Audio",
+					audioRunning ? ICON_FA_VOLUME_UP : ICON_FA_VOLUME_MUTE))
+				{
+					if (audioRunning)
+						context.audio.stopEngine();
+					else
+						context.audio.startEngine();
+				}
+
+				ImGui::EndMenu();
+			}
+		}
+
+		if (ImGui::BeginMenu(getString("window")))
+		{
+			if (ImGui::MenuItem(getString("vsync"), NULL, &Application::windowState.vsync))
+#if !defined(__ANDROID__) && !defined(MIKUMIKUWORLD_IOS)
+				glfwSwapInterval(Application::windowState.vsync);
+#endif
+
+			ImGui::MenuItem(getString("show_fps"), NULL, &config.showFPS);
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu(getString("help")))
+		{
+			if (ImGui::MenuItem(getString("help"), ToShortcutString(config.input.openHelp)))
+				help();
+
+			if (ImGui::MenuItem(getString("about")))
+				aboutDialog.open = true;
+
+			ImGui::EndMenu();
+		}
+
+		if (config.showFPS)
+		{
+			std::string fps = IO::formatString("%.3fms (%.1fFPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			ImGui::SetCursorPosX(ImGui::GetWindowSize().x - ImGui::CalcTextSize(fps.c_str()).x - ImGui::GetStyle().WindowPadding.x);
+			ImGui::Text("%s", fps.c_str());
+		}
+
+		ImGui::PopStyleVar();
+		ImGui::EndMainMenuBar();
+	}
+
+	void ScoreEditor::drawToolbar()
+	{
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImVec2 toolbarSize{ viewport->WorkSize.x, UI::toolbarBtnSize.y + ImGui::GetStyle().WindowPadding.y + 5 };
+
+		// keep toolbar on top in main viewport
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::SetNextWindowPos(viewport->WorkPos);
+		ImGui::SetNextWindowSize(toolbarSize, ImGuiCond_Always);
+
+		// toolbar style
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+		ImGui::PushStyleColor(ImGuiCol_Separator, ImGui::GetStyleColorVec4(ImGuiCol_WindowBg));
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		ImGui::Begin("##app_toolbar", NULL, ImGuiWindowFlags_Toolbar);
+		
+		if (UI::toolbarButton(ICON_FA_FILE, getString("new"), ToShortcutString(config.input.create)))
+		{
+			Application::windowState.resetting = true;
+		}
+
+		if (UI::toolbarButton(ICON_FA_FOLDER_OPEN, getString("open"), ToShortcutString(config.input.open)))
+		{
+			Application::windowState.resetting = true;
+			Application::windowState.shouldPickScore = true;
+		}
+
+		if (UI::toolbarButton(ICON_FA_SAVE, getString("save"), ToShortcutString(config.input.save)))
+			trySave(context.workingData.filename);
+
+		if (UI::toolbarButton(ICON_FA_FILE_EXPORT, getString("export"), ToShortcutString(config.input.exportScore)))
+			exportScore();
+
+		UI::toolbarSeparator();
+
+		const bool hasHiSpeedSelection = timeline.hasSelectedHiSpeed(context);
+		const bool hasSEVolumeSelection = timeline.hasSelectedSEVolume(context);
+		const bool hasAnySelection = hasHiSpeedSelection || hasSEVolumeSelection || context.selectedNotes.size() > 0;
+		if (UI::toolbarButton(ICON_FA_CUT, getString("cut"), ToShortcutString(config.input.cutSelection), hasAnySelection))
+		{
+			if (!timeline.cutSelectedHiSpeed(context) && !timeline.cutSelectedSEVolume(context))
+				context.cutSelection();
+		}
+
+		if (UI::toolbarButton(ICON_FA_COPY, getString("copy"), ToShortcutString(config.input.copySelection), hasAnySelection))
+		{
+			if (!timeline.copySelectedHiSpeed(context) && !timeline.copySelectedSEVolume(context))
+				context.copySelection();
+		}
+
+		if (UI::toolbarButton(ICON_FA_PASTE, getString("paste"), ToShortcutString(config.input.paste)))
+		{
+			if (!timeline.pasteHiSpeed(context, false) && !timeline.pasteSEVolume(context, false))
+				context.paste(false);
+		}
+
+		UI::toolbarSeparator();
+
+		if (UI::toolbarButton(ICON_FA_UNDO, getString("undo"), ToShortcutString(config.input.undo), context.history.hasUndo()))
+			context.undo();
+
+		if (UI::toolbarButton(ICON_FA_REDO, getString("redo"), ToShortcutString(config.input.redo), context.history.hasRedo()))
+			context.redo();
+
+		UI::toolbarSeparator();
+
+		for (int i = 0; i < (int)TimelineMode::TimelineModeMax; ++i)
+		{
+			if (i == (int)TimelineMode::InsertSEVolume)
+			{
+				if (UI::toolbarButton(ICON_FA_VOLUME_UP, getString(timelineModes[i]), ToShortcutString(*timelineModeBindings[i]), true, (int)timeline.getMode() == i))
+					timeline.changeMode((TimelineMode)i, edit);
+				continue;
+			}
+
+			std::string img{ IO::concat("timeline_tools", timelineModes[i], "_") };
+			int sprIndex = (int)timelineSprites[i];
+			if (i == (int)TimelineMode::InsertFlick)
+			{
+				img.append(IO::concat("", flickTypes[(int)edit.flickType], "_"));
+				sprIndex = (int)flickToolSprites[(int)edit.flickType - 1];
+			}
+			else if (i == (int)TimelineMode::InsertLongMid)
+			{
+				img.append(IO::concat("", stepTypes[(int)edit.stepType], "_"));
+				sprIndex = (int)stepToolSprites[(int)edit.stepType];
+			}
+
+			if (UI::toolbarImageButton("timeline_tools", sprIndex, getString(timelineModes[i]), ToShortcutString(*timelineModeBindings[i]), true, (int)timeline.getMode() == i))
+				timeline.changeMode((TimelineMode)i, edit);
+		}
+
+		ImGui::PopStyleColor(3);
+		ImGui::PopStyleVar(2);
+		ImGui::End();
+	}
+
+	void ScoreEditor::help()
+	{
+#ifdef _WIN32
+		ShellExecuteW(0, 0, L"https://github.com/crash5band/MikuMikuWorld/wiki", 0, 0, SW_SHOW);
+#elif defined(__APPLE__) && !defined(MIKUMIKUWORLD_IOS)
+		std::system("open https://github.com/crash5band/MikuMikuWorld/wiki");
+#endif
+	}
+
+	void ScoreEditor::autoSave()
+	{
+#ifdef _WIN32
+		std::wstring wAutoSaveDir = IO::mbToWideStr(autoSavePath);
+		std::filesystem::create_directory(wAutoSaveDir);
+#else
+		std::filesystem::create_directory(autoSavePath);
+#endif
+
+		context.score.metadata = context.workingData.toScoreMetadata();
+		NativeScoreSerializer().serialize(context.score, autoSavePath + "/mmw_auto_save_" + Utilities::getCurrentDateTime() + MMWS_EXTENSION);
+		
+		int mmwsCount = 0;
+#ifdef _WIN32
+		for (const auto& file : std::filesystem::directory_iterator(wAutoSaveDir))
+#else
+		for (const auto& file : std::filesystem::directory_iterator(autoSavePath))
+#endif
+		{
+			std::string extension = file.path().extension().string();
+			std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+			mmwsCount += static_cast<int>(extension == MMWS_EXTENSION);
+		}
+		
+		if (mmwsCount > config.autoSaveMaxCount)
+			deleteOldAutoSave(mmwsCount - config.autoSaveMaxCount);
+	}
+
+	int ScoreEditor::deleteOldAutoSave(int count)
+	{
+		std::wstring wAutoSaveDir = IO::mbToWideStr(autoSavePath);
+		if (!std::filesystem::exists(wAutoSaveDir))
+			return 0;
+
+		// get mmws files
+		using entry = std::filesystem::directory_entry;
+		std::vector<entry> deleteFiles;
+		for (const auto& file : std::filesystem::directory_iterator(wAutoSaveDir))
+		{
+			std::string extension = file.path().extension().string();
+			std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+			if (extension == MMWS_EXTENSION)
+				deleteFiles.push_back(file);
+		}
+
+		// sort files by modification date
+		std::sort(deleteFiles.begin(), deleteFiles.end(), [](const entry& f1, const entry& f2) {
+			return f1.last_write_time() < f2.last_write_time();
+		});
+
+		int deleteCount = std::min(static_cast<int>(deleteFiles.size()), count);
+		for (int i = 0; i < deleteCount; i++)
+			std::filesystem::remove(deleteFiles[i]);
+		
+		return deleteCount;
+	}
+
+	void ScoreEditor::loadPresets()
+	{
+		if (loadPresetsFuture.valid())
+			loadPresetsFuture.get();
+		
+		loadPresetsFuture = std::async(std::launch::async, [this]()
+		{
+			presetsWindow.notifyPresetsLoading();
+			presetManager.loadPresets();
+			presetsWindow.notifyPresetsLoaded(presetManager);
+		});
+	}
+
+	void ScoreEditor::importPreset(const std::string& path)
+	{
+		if (importPresetFuture.valid())
+			importPresetFuture.get();
+
+		presetsWindow.notifyPresetsLoading();
+		importPresetFuture = std::async(std::launch::async, [this, path]()
+		{
+			Result result = presetManager.importPreset(path);
+			presetsWindow.notifyPresetsLoaded(presetManager);
+
+			if (result.getStatus() != ResultStatus::Success)
+			{
+				IO::MessageBoxIcon icon = result.getStatus() == ResultStatus::Error ?
+					IO::MessageBoxIcon::Error :
+					IO::MessageBoxIcon::Warning;
+			
+				IO::messageBox(APP_NAME, result.getMessage(), IO::MessageBoxButtons::Ok, icon, Application::windowState.windowHandle);
+			}
+		});
+	}
+
+	void ScoreEditor::openImportPresetDialog()
+	{
+		IO::FileDialog fileDialog{"Import Preset", { IO::presetFilter }, "", "", ".json", 0, Application::windowState.windowHandle};
+		if (fileDialog.openFile() == IO::FileDialogResult::OK)
+			importPreset(fileDialog.outputFilename);
+	}
+}

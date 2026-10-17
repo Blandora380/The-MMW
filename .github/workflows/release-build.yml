@@ -1,0 +1,97 @@
+name: Release Build
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag to upload assets to
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows x64
+    # Historical beta APK releases contain existing binaries, not new desktop builds.
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: windows-latest
+
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build x64 Release
+        run: msbuild MikuMikuWorld/MikuMikuWorld.vcxproj /p:Configuration=Release /p:Platform=x64 /m
+
+      - name: Package Windows build
+        shell: pwsh
+        run: |
+          $outDir = "MikuMikuWorld/x64/Release"
+          $exePath = "$outDir/MikuMikuWorld.exe"
+          if (-not (Test-Path $exePath)) {
+            throw "Expected build output was not found at $exePath"
+          }
+
+          $packageDir = "artifacts/MikuMikuWorld-windows-x64"
+          $assetPath = "artifacts/MikuMikuWorld-windows-x64.zip"
+
+          New-Item -ItemType Directory -Force -Path $packageDir | Out-Null
+          Copy-Item $exePath $packageDir -Force
+          if (Test-Path "$outDir/res") {
+            Copy-Item "$outDir/res" $packageDir -Recurse -Force
+          }
+
+          Compress-Archive -Path "$packageDir/*" -DestinationPath $assetPath -Force
+
+      - name: Upload Windows asset to release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$env:RELEASE_TAG" "artifacts/MikuMikuWorld-windows-x64.zip" --clobber
+
+  build-macos:
+    name: Build macOS arm64
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
+    runs-on: macos-latest
+
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Package macOS build
+        run: |
+          app_bundle="build/MikuMikuWorld.app"
+          asset_path="artifacts/MikuMikuWorld-macos-arm64.zip"
+
+          if [ ! -d "$app_bundle" ]; then
+            echo "Expected build output was not found at $app_bundle" >&2
+            exit 1
+          fi
+
+          mkdir -p artifacts
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$app_bundle" "$asset_path"
+
+      - name: Upload macOS asset to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" "artifacts/MikuMikuWorld-macos-arm64.zip" --clobber

@@ -1,0 +1,63 @@
+#pragma once
+#include "Note.h"
+#include "Tempo.h"
+#include <string>
+#include <map>
+#include <vector>
+
+namespace MikuMikuWorld
+{
+	extern int nextSkillID;
+
+	struct SkillTrigger
+	{
+		int ID;
+		int tick;
+	};
+
+	struct Fever
+	{
+		int startTick;
+		int endTick;
+	};
+
+	struct HiSpeedChange
+	{
+		int tick;
+		float speed;
+	};
+
+	struct SEVolumeChange
+	{
+		int tick;
+		float volume;
+	};
+
+	struct ScoreMetadata
+	{
+		std::string title;
+		std::string artist;
+		std::string author;
+		std::string musicFile;
+		std::string jacketFile;
+		float musicOffset;
+		int musicId{};
+		std::string mvFile;
+		float mvOffset{};
+	};
+
+	struct Score
+	{
+		ScoreMetadata metadata;
+		std::map<int, Note> notes;
+		std::map<int, HoldNote> holdNotes;
+		std::vector<Tempo> tempoChanges;
+		std::map<int, TimeSignature> timeSignatures;
+		std::vector<HiSpeedChange> hiSpeedChanges;
+		std::vector<SEVolumeChange> seVolumeChanges;
+		std::vector<SkillTrigger> skills;
+		Fever fever;
+
+		Score();
+	};
+}

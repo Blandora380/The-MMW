@@ -1,0 +1,72 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.mikumikuworld.editor'
+    compileSdk 35
+    buildToolsVersion '36.1.0'
+    ndkVersion '30.0.16248370'
+
+    defaultConfig {
+        applicationId 'com.example.mmw'
+        manifestPlaceholders = [appLabel: 'MMW SEKAI Live']
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '4.3.3-1_beta'
+        ndk { abiFilters 'arm64-v8a' }
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_STL=c++_shared', '-DANDROID_PLATFORM=android-26',
+                        '-DMIKUMIKUWORLD_SEKAI_LIVE_RENDERING=ON'
+                targets 'main'
+            }
+        }
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile '../app/src/main/AndroidManifest.xml'
+            java.srcDirs = ['../app/src/main/java']
+            res.srcDirs = ['../app/src/main/res']
+            jniLibs.srcDirs = ['../app/src/main/jniLibs']
+            assets.srcDirs = [layout.buildDirectory.dir('generated/assets/mmw')]
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file('../../CMakeLists.txt')
+            version '4.1.2'
+        }
+    }
+
+    buildTypes {
+        release { minifyEnabled false }
+    }
+
+    packaging {
+        jniLibs { useLegacyPackaging true }
+    }
+}
+
+dependencies {
+    implementation files('../ffmpeg-kit-video-8.1.7.aar')
+}
+
+tasks.register('syncEditorAssets', Sync) {
+    from file('../../MikuMikuWorld/res')
+    into layout.buildDirectory.dir('generated/assets/mmw/res')
+    doLast {
+        def assetRoot = layout.buildDirectory.dir('generated/assets/mmw/res').get().asFile
+        def files = fileTree(assetRoot).files.findAll { it.name != '.android_asset_index' }
+                .collect { assetRoot.toPath().relativize(it.toPath()).toString().replace('\\', '/') }
+                .sort()
+        new File(assetRoot, 'android_asset_index.txt').text = files.join('\n') + '\n'
+    }
+}
+
+tasks.named('preBuild').configure {
+    dependsOn tasks.named('syncEditorAssets')
+}

@@ -1,0 +1,35 @@
+SEKAI intro graphics
+
+The difficulty backgrounds, collab-tag.png, start_grad.png, music-sheet.png,
+and person.png in this folder are copied
+from pjsekai-overlay-APPEND by TootieJin, ぴぃまん, and 名無し｡:
+https://github.com/TootieJin/pjsekai-overlay-APPEND
+
+The source project's README requests this attribution in the description of
+videos made with its assets:
+
+PJSekai-style video creation tool:
+- Forked ver. by TootieJin (https://tootiejin.com) & ぴぃまん (https://pim4n-net.com)
+- Developed by 名無し｡ (https://sevenc7c.com)
+   https://github.com/TootieJin/pjsekai-overlay-APPEND
+
+See LICENSE.txt for the source project's license. The jacket artwork and text
+shown in an intro are supplied by the chart author and are not included here.
+
+Android intro implementation
+
+The native renderer in ScorePreview.cpp ports the source AviUtl2 composition
+pkg/pjsekaioverlay/main2_16-9_1920x1080.object. A reference copy is included in
+source/main2_16-9_1920x1080.object. The quadratic deceleration follows the Lua
+formula in dependencies/aviutl2/Script/ANM_ssd/@加減速TRA.tra (param=2), included
+as source/easing.tra. AviUtl-specific host APIs are implemented by the native
+renderer rather than requiring AviUtl on Android.
+
+Reference timing is 300 frames at 60 fps (5 seconds): the panel settles over
+frames 0-111, gradient sweeps run at 60-179 and 180-299, and the foreground
+card fades out at 270-299. Gameplay fades in over the next 96 frames. The
+4:3 template's 75% scale and bottom alignment are also preserved.
+
+RodinNTLG Pro EB and DB are loaded from res/fonts when available. The fonts
+in this personal Android build were copied from the user's installed fonts;
+their original font licenses and ownership continue to apply.

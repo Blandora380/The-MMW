@@ -1,0 +1,92 @@
+name: iOS IPA
+
+on:
+  push:
+    branches: [main, ios-cloud-build]
+    paths-ignore:
+      - '.github/workflows/publish-ios-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build unsigned iPhone and iPad IPA
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack bundled artwork and fetch the Noto font
+        run: |
+          set -euo pipefail
+          if [ -f ios/assets/editor-assets.zip.part00 ]; then
+            cat ios/assets/editor-assets.zip.part* > ios/editor-assets.zip
+          fi
+          if [ -f ios/editor-assets.zip ]; then unzip -q -o ios/editor-assets.zip; fi
+          for archive in ios/assets/*.zip; do
+            if [ -f "$archive" ]; then unzip -q -o "$archive"; fi
+          done
+          mkdir -p MikuMikuWorld/res/fonts
+          if [ ! -f MikuMikuWorld/res/fonts/NotoSansCJK-Regular.ttc ]; then
+            curl --fail --location --retry 3 \
+              https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/OTC/NotoSansCJK-Regular.ttc \
+              --output MikuMikuWorld/res/fonts/NotoSansCJK-Regular.ttc
+            curl --fail --location --retry 3 \
+              https://raw.githubusercontent.com/notofonts/noto-cjk/f8d157532fbfaeda587e826d4cd5b21a49186f7c/Sans/LICENSE \
+              --output MikuMikuWorld/res/fonts/Noto-OFL.txt
+          fi
+      - name: Prepare app icons
+        run: python3 ios/prepare_icons.py
+      - name: Configure iOS arm64
+        run: |
+          set -o pipefail
+          cmake -S . -B build-ios -G Xcode \
+            -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT=iphoneos \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0 \
+            -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
+            -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED=NO 2>&1 | tee ios-configure.log
+      - name: Build
+        run: |
+          set -o pipefail
+          cmake --build build-ios --config Release --parallel 3 -- \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee ios-build.log
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          app="$(find build-ios -type d -name MikuMikuWorld.app -path '*Release-iphoneos*' -print -quit)"
+          test -n "$app"
+          test -f "$app/MikuMikuWorld"
+          test -f "$app/res/shaders/basic2d.vert"
+          test -f "$app/res/fonts/NotoSansCJK-Regular.ttc"
+          lipo "$app/MikuMikuWorld" -verify_arch arm64
+          plutil -lint "$app/Info.plist"
+          mkdir -p package/Payload
+          ditto "$app" package/Payload/MikuMikuWorld.app
+          cd package
+          /usr/bin/zip -qry MikuMikuWorld-4.3.3-1_beta-unsigned.ipa Payload
+          shasum -a 256 MikuMikuWorld-4.3.3-1_beta-unsigned.ipa > SHA256SUMS.txt
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: MikuMikuWorld-iOS-unsigned
+          path: |
+            package/*.ipa
+            package/SHA256SUMS.txt
+          retention-days: 14
+          if-no-files-found: error
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-build-logs
+          path: |
+            ios-configure.log
+            ios-build.log
+          retention-days: 7

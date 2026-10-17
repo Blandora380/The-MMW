@@ -1,0 +1,82 @@
+name: Publish iOS release
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_run_id:
+        description: Successful iOS IPA workflow run ID in this repository
+        required: true
+        type: string
+      release_tag:
+        description: Tag for the unsigned iOS release
+        default: v4.3.3-1_beta-ios
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: publish-ios-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download the successfully built IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: MikuMikuWorld-iOS-unsigned
+          run-id: ${{ inputs.artifact_run_id }}
+          github-token: ${{ github.token }}
+          path: release-files
+      - name: Publish beta release and attach IPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_SOURCE: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-files
+          sha256sum --check SHA256SUMS.txt
+          cat > release-notes.md <<'NOTES'
+          ## MikuMikuWorld 4.3.3-1_beta — iOS
+
+          Unsigned IPA for arm64 iPhones and iPads running iOS 15 or later.
+
+          **Sign the IPA with your sideloading tool before installing it.** This file cannot be installed directly without signing.
+
+          Downloaded from the successful iOS IPA workflow run selected when manually running this publishing workflow in this repository. SHA256SUMS.txt is included to verify the download.
+
+          Compilation and packaging passed. Runtime has not yet been checked on an iPhone or iPad. Video export pauses while the iOS app is inactive; the Android foreground export service and YouTube mini player are not included in this iOS target.
+
+          Original project: https://github.com/crash5band/MikuMikuWorld
+          Original fork: https://github.com/watagashi-uni/
+          Android port: -YOUKAI- (Discord @desktop2202)
+          NOTES
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --target "$RELEASE_SOURCE" \
+              --draft --prerelease --title "$RELEASE_TAG (iOS)" \
+              --notes-file release-notes.md
+          fi
+          release_api="$(gh release view "$RELEASE_TAG" --json apiUrl --jq .apiUrl)"
+          for asset in MikuMikuWorld-4.3.3-1_beta-unsigned.ipa SHA256SUMS.txt; do
+            digest="$(gh api "$release_api" \
+              --jq ".assets[] | select(.name == \"$asset\") | .digest")"
+            if [ -n "$digest" ]; then
+              expected="sha256:$(sha256sum "$asset" | cut -d ' ' -f 1)"
+              if [ "$digest" != "$expected" ]; then
+                echo "An existing release asset has different content: $asset" >&2
+                exit 1
+              fi
+            else
+              gh release upload "$RELEASE_TAG" "$asset"
+            fi
+          done
+          gh release edit "$RELEASE_TAG" --target "$RELEASE_SOURCE" --draft=false --prerelease
+          gh release view "$RELEASE_TAG" --json url,assets
