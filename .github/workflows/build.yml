@@ -9,7 +9,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - run: yes | sdkmanager --licenses >/dev/null; sdkmanager "platforms;android-35" "build-tools;36.1.0" "ndk;30.0.16248370" "cmake;4.1.2"
+      - run: export PATH=$PATH:$ANDROID_HOME/cmdline-tools/16.0/bin; yes | sdkmanager --licenses >/dev/null; sdkmanager "platforms;android-35" "build-tools;36.1.0" "ndk;30.0.16248370" "cmake;4.1.2"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 9.1
