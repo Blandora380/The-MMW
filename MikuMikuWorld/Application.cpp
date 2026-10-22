@@ -469,7 +469,7 @@ namespace MikuMikuWorld
 				ImGui::Image((ImTextureID)(intptr_t)warningTexture.getID(), imageSize);
 
 				ImGui::Spacing();
-				const char* caption = "just us, a little sunshine,\nand memories i wish i could keep forever.";
+				const char* caption = "the the the the the the\nthe the the the";
 				const ImVec2 captionSize = ImGui::CalcTextSize(caption);
 				ImGui::SetCursorPosX(std::max((ImGui::GetContentRegionAvail().x - captionSize.x) * 0.5f, 0.0f));
 				ImGui::TextUnformatted(caption);
@@ -643,7 +643,7 @@ namespace MikuMikuWorld
 		ResourceManager::loadTexture(hudAssetsDir + "life/normal.png");
 		ResourceManager::loadTexture(hudAssetsDir + "judge/perfect.png");
 
-		const std::string startupWarningImage = appDir + "res/warning.jpg";
+		const std::string startupWarningImage = appDir + "res/warning.png";
 		ResourceManager::loadTexture(startupWarningImage);
 		startupWarningTextureIndex = ResourceManager::getTextureByFilename(startupWarningImage);
 

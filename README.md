@@ -1,4 +1,4 @@
-# MikuMikuWorld4Android
+# MikuMikuWorld4Android The Version
 
 Native Android rhythm chart editor based on MikuMikuWorld, with touch editing,
 chart preview, video backgrounds, SEKAI intros and MP4 export.
@@ -11,7 +11,7 @@ See [the build archive](docs/RELEASES.md) for the dated APK history and checksum
 | Android app | Package | Architectures |
 | --- | --- | --- |
 | MikuMikuWorld | `com.mm4andr.youkai` | ARM64 and x86_64 |
-| MMW SEKAI Live | `com.example.mmw` | ARM64 |
+| The MMW | `com.the.mmw` | ARM64 |
 
 MMW SEKAI Live is a separate app with adjustable forward-leaning note surfaces
 in preview and MP4 export. It recreates the appearance in the existing renderer;
