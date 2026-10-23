@@ -104,6 +104,7 @@ namespace MikuMikuWorld
 
 	FfmpegEncoder::~FfmpegEncoder()
 	{
+                stopWriter(true);
 		cancel();
 	}
 
@@ -126,6 +127,8 @@ namespace MikuMikuWorld
 		const std::string& audioFilename, float audioStart, float audioDelay,
 		const std::string& soundEffectsFilename, float duration, std::string& error)
 	{
+                stopWriter(true);
+                writerFailed = false;
 #ifdef _WIN32
 		cancel();
 		const std::wstring executable = findFfmpeg();
@@ -353,7 +356,7 @@ namespace MikuMikuWorld
 #endif
 	}
 
-	bool FfmpegEncoder::writeFrame(const std::vector<uint8_t>& rgbaFrame)
+	bool FfmpegEncoder::writeFrameDirect(const std::vector<uint8_t>& rgbaFrame)
 	{
 #ifdef _WIN32
 		if (!inputHandle)
@@ -427,8 +430,89 @@ namespace MikuMikuWorld
 #endif
 	}
 
-	bool FfmpegEncoder::finish(std::string& error)
+	bool FfmpegEncoder::writeFrame(const std::vector<uint8_t>& rgbaFrame)
+        {
+#ifdef __ANDROID__
+                if (writerFailed.load())
+                        return false;
+                std::unique_lock<std::mutex> lock(writerMutex);
+                if (!writerStarted)
+                {
+                        lock.unlock();
+                        if (!writeFrameDirect(rgbaFrame))
+                                return false;
+                        lock.lock();
+                        writerStarted = true;
+                        writerStop = false;
+                        writerThread = std::thread(&FfmpegEncoder::writerLoop, this);
+                        return true;
+                }
+                writerCv.wait(lock, [this] { return writerQueue.size() < 3 || writerFailed.load(); });
+                if (writerFailed.load())
+                        return false;
+                std::vector<uint8_t> buffer;
+                if (!writerPool.empty())
+                {
+                        buffer = std::move(writerPool.back());
+                        writerPool.pop_back();
+                }
+                lock.unlock();
+                buffer.assign(rgbaFrame.begin(), rgbaFrame.end());
+                lock.lock();
+                writerQueue.push_back(std::move(buffer));
+                lock.unlock();
+                writerCv.notify_all();
+                return true;
+#else
+                return writeFrameDirect(rgbaFrame);
+#endif
+        }
+
+        void FfmpegEncoder::writerLoop()
+        {
+                std::unique_lock<std::mutex> lock(writerMutex);
+                for (;;)
+                {
+                        writerCv.wait(lock, [this] { return !writerQueue.empty() || writerStop; });
+                        if (writerQueue.empty())
+                                break;
+                        std::vector<uint8_t> frame = std::move(writerQueue.front());
+                        writerQueue.pop_front();
+                        lock.unlock();
+                        writerCv.notify_all();
+                        const bool ok = writeFrameDirect(frame);
+                        lock.lock();
+                        if (!ok)
+                        {
+                                writerFailed = true;
+                                writerQueue.clear();
+                                writerCv.notify_all();
+                                break;
+                        }
+                        writerPool.push_back(std::move(frame));
+                }
+        }
+
+        void FfmpegEncoder::stopWriter(bool discard)
+        {
+                {
+                        std::lock_guard<std::mutex> lock(writerMutex);
+                        if (discard)
+                                writerQueue.clear();
+                        writerStop = true;
+                }
+                writerCv.notify_all();
+                if (writerThread.joinable())
+                        writerThread.join();
+                std::lock_guard<std::mutex> lock(writerMutex);
+                writerStarted = false;
+                writerStop = false;
+                writerPool.clear();
+        }
+
+        bool FfmpegEncoder::finish(std::string& error)
 	{
+                stopWriter(false);
 #ifdef _WIN32
 		if (inputHandle)
 		{
@@ -505,6 +589,7 @@ namespace MikuMikuWorld
 
 	void FfmpegEncoder::cancel()
 	{
+                stopWriter(true);
 #ifdef MIKUMIKUWORLD_IOS
 		IOSVideoCancel(processHandle);
 		processHandle = nullptr;
