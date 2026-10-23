@@ -122,6 +122,9 @@ namespace MikuMikuWorld
 		void setExportStageFadeIn(float alpha) { exportStageFadeIn = std::clamp(alpha, 0.0f, 1.0f); }
 		void clearExportResolution();
 		void readPreviewPixels(std::vector<uint8_t>& pixels) const;
+               bool readPreviewPixelsPipelined(std::vector<uint8_t>& pixels);
+               bool flushPreviewPixelsPipelined(std::vector<uint8_t>& pixels);
+               void resetPreviewPixelsPipeline();
 		
 		inline bool isFullWindow() const { return fullWindow; };
 

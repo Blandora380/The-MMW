@@ -1586,10 +1586,10 @@ namespace MikuMikuWorld
 			return;
 
 		const auto tRead0 = std::chrono::steady_clock::now();
-                preview.readPreviewPixels(framePixels);
+                if (framesWritten == 0)\n                        preview.resetPreviewPixelsPipeline();\n                const bool haveFrame = preview.readPreviewPixelsPipelined(framePixels);
                 const auto tRead1 = std::chrono::steady_clock::now();
                 gExpReadMs += std::chrono::duration<double, std::milli>(tRead1 - tRead0).count();
-		const bool frameWritten = encoder.writeFrame(framePixels);
+		const bool frameWritten = !haveFrame || encoder.writeFrame(framePixels);
                 gExpWriteMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tRead1).count();
                 if (!frameWritten)
 		{
@@ -1607,7 +1607,18 @@ namespace MikuMikuWorld
 
 		captureThisFrame = false;
 		if (framesWritten >= totalFrames)
-			finishExport(context, timeline, preview, false);
+                {
+                        bool flushed = true;
+                        if (preview.flushPreviewPixelsPipelined(framePixels))
+                                flushed = encoder.writeFrame(framePixels);
+                        if (!flushed)
+                        {
+                                finishExport(context, timeline, preview, true);
+                                resultMessage = getString("export_mp4_failed");
+                                return;
+                        }
+                        finishExport(context, timeline, preview, false);
+                }
 	}
 
 	void Mp4ExportWindow::update(ScoreContext& context, ScoreEditorTimeline& timeline, ScorePreviewWindow& preview)

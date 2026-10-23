@@ -1266,9 +1266,24 @@ namespace MikuMikuWorld
 	}
 
 	void ScorePreviewWindow::readPreviewPixels(std::vector<uint8_t>& pixels) const
-	{
-		previewBuffer.readPixels(pixels);
-	}
+        {
+                previewBuffer.readPixels(pixels);
+        }
+
+        bool ScorePreviewWindow::readPreviewPixelsPipelined(std::vector<uint8_t>& pixels)
+        {
+                return previewBuffer.readPixelsPipelined(pixels);
+        }
+
+        bool ScorePreviewWindow::flushPreviewPixelsPipelined(std::vector<uint8_t>& pixels)
+        {
+                return previewBuffer.flushPipelined(pixels);
+        }
+
+        void ScorePreviewWindow::resetPreviewPixelsPipeline()
+        {
+                previewBuffer.resetPipelined();
+        }
 
 	void ScorePreviewWindow::drawSekaiIntroBackdrop(ImDrawList* drawList, ImVec2 size, float opacity, bool tinted)
 	{

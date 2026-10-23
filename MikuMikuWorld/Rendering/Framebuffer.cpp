@@ -1,3 +1,4 @@
+#include <cstring>
 #include "Framebuffer.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -91,7 +92,79 @@ namespace MikuMikuWorld
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFramebuffer);
 	}
 
-	void Framebuffer::createTexture(unsigned int tex)
+	void Framebuffer::ensurePbos(std::size_t size)
+        {
+                if (pboSize == size && pbos[0])
+                        return;
+                if (pbos[0])
+                        glDeleteBuffers(2, pbos);
+                glGenBuffers(2, pbos);
+                GLint previousPack = 0;
+                glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &previousPack);
+                for (unsigned int pbo : pbos)
+                {
+                        glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+                        glBufferData(GL_PIXEL_PACK_BUFFER, static_cast<GLsizeiptr>(size), nullptr, GL_STREAM_READ);
+                }
+                glBindBuffer(GL_PIXEL_PACK_BUFFER, previousPack);
+                pboSize = size;
+                pboIndex = 0;
+                pboPending = false;
+        }
+
+        void Framebuffer::copyOutPbo(unsigned int pbo, std::size_t size, std::vector<uint8_t>& pixels)
+        {
+                glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+                const void* source = glMapBufferRange(GL_PIXEL_PACK_BUFFER, 0, static_cast<GLsizeiptr>(size), GL_MAP_READ_BIT);
+                pixels.resize(size);
+                if (!source)
+                        return;
+                std::memcpy(pixels.data(), source, size);
+                glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+        }
+
+        bool Framebuffer::readPixelsPipelined(std::vector<uint8_t>& pixels)
+        {
+                const std::size_t size = static_cast<std::size_t>(width) * height * 4;
+                ensurePbos(size);
+                GLint previousRead = 0, previousPack = 0;
+                glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previousRead);
+                glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &previousPack);
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+                glReadBuffer(GL_COLOR_ATTACHMENT0);
+                glBindBuffer(GL_PIXEL_PACK_BUFFER, pbos[pboIndex]);
+                glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                const bool haveFrame = pboPending;
+                if (haveFrame)
+                        copyOutPbo(pbos[pboIndex ^ 1], size, pixels);
+                glBindBuffer(GL_PIXEL_PACK_BUFFER, previousPack);
+                glBindFramebuffer(GL_READ_FRAMEBUFFER, previousRead);
+                pboIndex ^= 1;
+                pboPending = true;
+                return haveFrame;
+        }
+
+        bool Framebuffer::flushPipelined(std::vector<uint8_t>& pixels)
+        {
+                if (!pboPending)
+                        return false;
+                pboPending = false;
+                const std::size_t size = static_cast<std::size_t>(width) * height * 4;
+                if (size != pboSize)
+                        return false;
+                GLint previousPack = 0;
+                glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &previousPack);
+                copyOutPbo(pbos[pboIndex ^ 1], size, pixels);
+                glBindBuffer(GL_PIXEL_PACK_BUFFER, previousPack);
+                return true;
+        }
+
+        void Framebuffer::resetPipelined()
+        {
+                pboPending = false;
+        }
+
+        void Framebuffer::createTexture(unsigned int tex)
 	{
 		glBindTexture(GL_TEXTURE_2D, tex);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
