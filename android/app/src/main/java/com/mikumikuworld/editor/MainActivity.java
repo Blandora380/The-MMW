@@ -176,6 +176,7 @@ public final class MainActivity extends NativeActivity {
         runOnUiThread(() -> {
             startForegroundService(new Intent(this, VideoExportService.class));
             hideExportVideoPlayerOnUiThread();
+            getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             final int generation = ++exportVideoGeneration;
             exportVideoScrapeAttempts = 0;
             scrapingExportChannel = true;
@@ -305,6 +306,7 @@ public final class MainActivity extends NativeActivity {
     }
 
     private void hideExportVideoPlayerOnUiThread() {
+        getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         ++exportVideoGeneration;
         scrapingExportChannel = false;
         exportVideoHandler.removeCallbacksAndMessages(null);

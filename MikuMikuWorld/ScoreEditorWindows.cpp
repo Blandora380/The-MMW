@@ -1,3 +1,7 @@
+#include <chrono>
+#include <cstdio>
+static double gExpReadMs = 0, gExpWriteMs = 0;
+static std::chrono::steady_clock::time_point gExpStart;
 #include "Application.h"
 #include "ScoreEditorWindows.h"
 #include "UI.h"
@@ -1482,6 +1486,7 @@ namespace MikuMikuWorld
 		exporting = true;
 		#if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
 		AndroidFileDialog_ShowExportVideoPlayer();
+                gExpReadMs = 0; gExpWriteMs = 0; gExpStart = std::chrono::steady_clock::now();
 		AndroidFileDialog_UpdateExportProgress(0, totalFrames);
 		#endif
 		return true;
@@ -1530,7 +1535,15 @@ namespace MikuMikuWorld
 		if (cancelled)
 			resultMessage = getString("export_mp4_cancelled");
 		else if (success)
-			resultMessage = getString("export_mp4_success");
+			{
+                        const double totalMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - gExpStart).count();
+                        const double frames = static_cast<double>(std::max<uint64_t>(framesWritten, 1));
+                        char timing[160];
+                        std::snprintf(timing, sizeof(timing), " | %.1f ms/frame: read %.1f, write %.1f, other %.1f",
+                                totalMs / frames, gExpReadMs / frames, gExpWriteMs / frames,
+                                (totalMs - gExpReadMs - gExpWriteMs) / frames);
+                        resultMessage = std::string(getString("export_mp4_success")) + timing;
+                }
 		else
 			resultMessage = error.empty() ? getString("export_mp4_failed") : error;
 #if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
@@ -1570,8 +1583,13 @@ namespace MikuMikuWorld
 		if (!exporting || !captureThisFrame)
 			return;
 
-		preview.readPreviewPixels(framePixels);
-		if (!encoder.writeFrame(framePixels))
+		const auto tRead0 = std::chrono::steady_clock::now();
+                preview.readPreviewPixels(framePixels);
+                const auto tRead1 = std::chrono::steady_clock::now();
+                gExpReadMs += std::chrono::duration<double, std::milli>(tRead1 - tRead0).count();
+		const bool frameWritten = encoder.writeFrame(framePixels);
+                gExpWriteMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tRead1).count();
+                if (!frameWritten)
 		{
 			// A failed frame means FFmpeg stopped consuming the input pipe. Do not
 			// run the normal finish path here: it waits for FFmpeg to drain and can
