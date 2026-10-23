@@ -1269,7 +1269,14 @@ namespace MikuMikuWorld
 			sekaiDifficultyBackgrounds[introDifficulty] = std::make_unique<Texture>(assets + difficultyFiles[introDifficulty]);
 	}
 
-	void ScorePreviewWindow::clearExportResolution()
+	void selectScorePreviewTab()
+        {
+                ImGuiWindow* window = ImGui::FindWindowByName("###score_preview");
+                if (window && window->DockNode && window->DockNode->TabBar)
+                        window->DockNode->TabBar->NextSelectedTabId = window->TabId;
+        }
+
+        void ScorePreviewWindow::clearExportResolution()
 	{
 		exportWidth = exportHeight = 0;
 		exportIncludeUI = false;

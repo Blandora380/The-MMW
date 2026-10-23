@@ -1487,7 +1487,7 @@ namespace MikuMikuWorld
 		preview.setExportStageFadeIn(1.0f);
 		resultMessage.clear();
 		exporting = true;
-                ImGui::SetWindowFocus("###score_preview");
+                { void selectScorePreviewTab(); selectScorePreviewTab(); }
 		#if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
 		AndroidFileDialog_ShowExportVideoPlayer();
                 gExpReadMs = 0; gExpWriteMs = 0; gExpTimelineMs = 0; gExpPreviewMs = 0; for (double& v : gPv) v = 0; gExpStart = std::chrono::steady_clock::now();
