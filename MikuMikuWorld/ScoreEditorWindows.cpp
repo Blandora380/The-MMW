@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstdio>
 static double gExpReadMs = 0, gExpWriteMs = 0;
+extern double gPv[7];
 double gExpTimelineMs = 0, gExpPreviewMs = 0;
 static std::chrono::steady_clock::time_point gExpStart;
 #include "Application.h"
@@ -1478,6 +1479,7 @@ namespace MikuMikuWorld
 		timeline.setPlaybackSpeed(context, 1.0f);
 		timeline.setTime(context, startTime);
 		timeline.setPlaying(context, true);
+                context.scorePreviewDrawData.effectView.reset();
 		preview.setExportResolution(outputWidth, outputHeight, includeUI);
 		preview.setExportSekaiIntro(includeSekaiIntro, 0.0f, introDuration, sekaiIntroTitle, sekaiIntroDesigner,
 			sekaiIntroLyricist, sekaiIntroComposer, sekaiIntroArrangement, sekaiIntroVocal,
@@ -1485,9 +1487,10 @@ namespace MikuMikuWorld
 		preview.setExportStageFadeIn(1.0f);
 		resultMessage.clear();
 		exporting = true;
+                ImGui::SetWindowFocus("###score_preview");
 		#if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
 		AndroidFileDialog_ShowExportVideoPlayer();
-                gExpReadMs = 0; gExpWriteMs = 0; gExpTimelineMs = 0; gExpPreviewMs = 0; gExpStart = std::chrono::steady_clock::now();
+                gExpReadMs = 0; gExpWriteMs = 0; gExpTimelineMs = 0; gExpPreviewMs = 0; for (double& v : gPv) v = 0; gExpStart = std::chrono::steady_clock::now();
 		AndroidFileDialog_UpdateExportProgress(0, totalFrames);
 		#endif
 		return true;
@@ -1526,6 +1529,7 @@ namespace MikuMikuWorld
 		timeline.setPlaybackSpeed(context, originalPlaybackSpeed);
 		config.stopAtEnd = originalStopAtEnd;
 		preview.clearExportResolution();
+                context.scorePreviewDrawData.effectView.reset();
 		exporting = false;
 		captureThisFrame = false;
 		// Keep the common 1080p buffers for the next export, but release very
@@ -1544,7 +1548,11 @@ namespace MikuMikuWorld
                                 totalMs / frames, gExpReadMs / frames, gExpWriteMs / frames,
                                 gExpTimelineMs / frames, gExpPreviewMs / frames,
                                 (totalMs - gExpReadMs - gExpWriteMs - gExpTimelineMs - gExpPreviewMs) / frames);
-                        resultMessage = std::string(getString("export_mp4_success")) + timing;
+                        char timing2[200];
+                        std::snprintf(timing2, sizeof(timing2), " | bg %.1f, stage %.1f, lines %.1f, under %.1f, notes %.1f, fx %.1f, hud %.1f",
+                                gPv[0] / frames, gPv[1] / frames, gPv[2] / frames, gPv[3] / frames,
+                                gPv[4] / frames, gPv[5] / frames, gPv[6] / frames);
+                        resultMessage = std::string(getString("export_mp4_success")) + timing + timing2;
                 }
 		else
 			resultMessage = error.empty() ? getString("export_mp4_failed") : error;

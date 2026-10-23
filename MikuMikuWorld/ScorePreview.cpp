@@ -1,3 +1,8 @@
+#include <chrono>
+double gPv[7] = {};
+static std::chrono::steady_clock::time_point gPvT;
+#define PV_RESET() (gPvT = std::chrono::steady_clock::now())
+#define PV_LAP(i) do { const auto n_ = std::chrono::steady_clock::now(); gPv[i] += std::chrono::duration<double, std::milli>(n_ - gPvT).count(); gPvT = n_; } while (0)
 #include "Application.h"
 #include "ScorePreview.h"
 #include "PreviewEngine.h"
@@ -993,7 +998,7 @@ namespace MikuMikuWorld
 		if (!context.scorePreviewDrawData.effectView.isInitialized())
 			context.scorePreviewDrawData.effectView.init();
 
-		if (playbackState.isPlaying && !(exportWidth > 0 && exportSekaiIntro))
+		if ((playbackState.isPlaying || exportWidth > 0) && !(exportWidth > 0 && exportSekaiIntro))
 		{
 			context.scorePreviewDrawData.effectView.update(context);
 		}
@@ -1040,6 +1045,7 @@ namespace MikuMikuWorld
 		if (previewBuffer.getWidth() != size.x || previewBuffer.getHeight() != size.y)
 			previewBuffer.resize(size.x, size.y);
 		previewBuffer.bind();
+                PV_RESET();
 		previewBuffer.clear();
 
 		if (exportWidth > 0 && exportSekaiIntro)
@@ -1070,7 +1076,8 @@ namespace MikuMikuWorld
 		shader->use();
 		shader->setMatrix4("projection", viewProjection);
 		renderer->beginBatch();
-		drawStage(renderer);
+		PV_LAP(0);
+                drawStage(renderer);
 		renderer->endBatch();
 
 		context.scorePreviewDrawData.effectView.updateEffects(context, noteEffectsCamera, currentTime);
@@ -1078,7 +1085,8 @@ namespace MikuMikuWorld
 		shader->use();
 		shader->setMatrix4("projection", viewProjection);
 		renderer->beginBatch();
-		drawLines(context, renderer);
+		PV_LAP(1);
+                drawLines(context, renderer);
 		drawHoldCurves(context, renderer);
 		if (config.pvStageCover != 0) {
 			drawStageCoverMask(renderer);
@@ -1091,14 +1099,16 @@ namespace MikuMikuWorld
 		pteShader->setMatrix4("projection", pProjection);
 		pteShader->setMatrix4("view", pView);
 		renderer->beginBatch();
-		context.scorePreviewDrawData.effectView.drawUnderNoteEffects(renderer, currentTime);
+		PV_LAP(2);
+                context.scorePreviewDrawData.effectView.drawUnderNoteEffects(renderer, currentTime);
 		renderer->endBatchWithBlending(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 		shader->use();
 		shader->setMatrix4("projection", viewProjection);
 		renderer->beginBatch();
 
-		drawHoldTicks(context, renderer);
+		PV_LAP(3);
+                drawHoldTicks(context, renderer);
 		drawNotes(context, renderer);
 		if (config.pvStageCover != 0) {
 			drawStageCoverMask(renderer);
@@ -1113,10 +1123,12 @@ namespace MikuMikuWorld
 		pteShader->setMatrix4("projection", pProjection);
 		pteShader->setMatrix4("view", pView);
 		renderer->beginBatch();
-		context.scorePreviewDrawData.effectView.drawEffects(renderer, currentTime);
+		PV_LAP(4);
+                context.scorePreviewDrawData.effectView.drawEffects(renderer, currentTime);
 		renderer->endBatchWithBlending(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-		if (exportWidth > 0 && exportHeight > 0 && (exportIncludeUI || exportStageFadeIn < 1.0f))
+		PV_LAP(5);
+                if (exportWidth > 0 && exportHeight > 0 && (exportIncludeUI || exportStageFadeIn < 1.0f))
 		{
 			ImDrawList hudDrawList(ImGui::GetDrawListSharedData());
 			hudDrawList._ResetForNewFrame();
@@ -1137,7 +1149,8 @@ namespace MikuMikuWorld
 		}
 
 		previewBuffer.unblind();
-		drawList->AddImage((ImTextureID)(size_t)previewBuffer.getTexture(), position, position + displaySize, {0, 1}, {1, 0});
+		PV_LAP(6);
+                drawList->AddImage((ImTextureID)(size_t)previewBuffer.getTexture(), position, position + displaySize, {0, 1}, {1, 0});
 		if (exportWidth <= 0)
 			drawHudOverlay(context, drawList, position, displaySize);
 	}
