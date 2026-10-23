@@ -465,13 +465,13 @@ namespace MikuMikuWorld
 			{
 				bool shouldClose = false;
 
-				ImGui::SetCursorPosX(std::max((ImGui::GetContentRegionAvail().x - imageSize.x) * 0.5f, 0.0f));
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max((ImGui::GetContentRegionAvail().x - imageSize.x) * 0.5f, 0.0f));
 				ImGui::Image((ImTextureID)(intptr_t)warningTexture.getID(), imageSize);
 
 				ImGui::Spacing();
 				const char* caption = "the the the the the the\nthe the the the";
 				const ImVec2 captionSize = ImGui::CalcTextSize(caption);
-				ImGui::SetCursorPosX(std::max((ImGui::GetContentRegionAvail().x - captionSize.x) * 0.5f, 0.0f));
+				ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max((ImGui::GetContentRegionAvail().x - captionSize.x) * 0.5f, 0.0f));
 				ImGui::TextUnformatted(caption);
 				ImGui::Spacing();
 				ImGui::Checkbox(getString("startup_warning_hide"), &startupWarningDontShowAgain);
