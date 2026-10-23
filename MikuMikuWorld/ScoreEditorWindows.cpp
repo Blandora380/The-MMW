@@ -1586,7 +1586,9 @@ namespace MikuMikuWorld
 			return;
 
 		const auto tRead0 = std::chrono::steady_clock::now();
-                if (framesWritten == 0)\n                        preview.resetPreviewPixelsPipeline();\n                const bool haveFrame = preview.readPreviewPixelsPipelined(framePixels);
+                if (framesWritten == 0)
+                        preview.resetPreviewPixelsPipeline();
+                const bool haveFrame = preview.readPreviewPixelsPipelined(framePixels);
                 const auto tRead1 = std::chrono::steady_clock::now();
                 gExpReadMs += std::chrono::duration<double, std::milli>(tRead1 - tRead0).count();
 		const bool frameWritten = !haveFrame || encoder.writeFrame(framePixels);
