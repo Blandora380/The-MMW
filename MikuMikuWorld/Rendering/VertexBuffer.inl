@@ -103,7 +103,7 @@ namespace MikuMikuWorld
 	void VertexBuffer<VertexType>::uploadBuffer()
 	{
 		size_t size = getSize();
-		glBufferSubData(GL_ARRAY_BUFFER, 0, size, buffer);
+		glBufferData(GL_ARRAY_BUFFER, size, buffer, GL_DYNAMIC_DRAW);
 	}
 
 	template<typename VertexType>
