@@ -1,3 +1,6 @@
+#ifdef __ANDROID__
+#include <poll.h>
+#endif
 #include "FfmpegEncoder.h"
 #include "IO.h"
 #include <algorithm>
@@ -276,6 +279,9 @@ namespace MikuMikuWorld
 			return false;
 		}
 		std::signal(SIGPIPE, SIG_IGN);
+#ifdef F_SETPIPE_SZ
+                fcntl(androidPipeHandle, F_SETPIPE_SZ, 1 << 20);
+#endif
 
 		const bool useLibx264 = avcodec_find_encoder_by_name("libx264") != nullptr;
 		const char* videoEncoder = useLibx264 ? "libx264" : "h264_mediacodec";
@@ -393,15 +399,18 @@ namespace MikuMikuWorld
 			const size_t requested = std::min<size_t>(rgbaFrame.size() - offset, 1024 * 1024);
 			const ssize_t written = write(androidPipeHandle, rgbaFrame.data() + offset, requested);
 			if (written < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK))
-			{
-				if (errno != EINTR && AndroidFileDialog_GetFfmpegStatus(androidSessionId) != INT32_MAX)
-				{
-					__android_log_print(ANDROID_LOG_ERROR, "MMWFFmpegNative", "FFmpeg stopped while accepting a video frame");
-					return false;
-				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				continue;
-			}
+                        {
+                                if (errno != EINTR)
+                                {
+                                        struct pollfd pfd = { androidPipeHandle, POLLOUT, 0 };
+                                        if (poll(&pfd, 1, 20) == 0 && AndroidFileDialog_GetFfmpegStatus(androidSessionId) != INT32_MAX)
+                                        {
+                                                __android_log_print(ANDROID_LOG_ERROR, "MMWFFmpegNative", "FFmpeg stopped while accepting a video frame");
+                                                return false;
+                                        }
+                                }
+                                continue;
+                        }
 			if (written <= 0)
 			{
 				__android_log_print(ANDROID_LOG_ERROR, "MMWFFmpegNative", "Frame pipe write failed after %zu/%zu bytes: errno=%d",
