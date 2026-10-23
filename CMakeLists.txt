@@ -4,12 +4,16 @@ if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS deployment target")
 endif()
 
-project(MikuMikuWorld VERSION 4.3.3 LANGUAGES C CXX)
+project(MikuMikuWorld VERSION 0.1.0 LANGUAGES C CXX)
+
+if(ANDROID)
+    add_compile_options(-O2)
+endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
     set(MIKUMIKUWORLD_IOS TRUE)
     enable_language(OBJCXX)
 endif()
-set(MIKUMIKUWORLD_VERSION_STRING "4.3.3-1_beta")
+set(MIKUMIKUWORLD_VERSION_STRING "0.1.0")
 option(MIKUMIKUWORLD_SEKAI_LIVE_RENDERING "Build the separate SEKAI live note renderer" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
