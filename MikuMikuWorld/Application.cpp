@@ -523,7 +523,7 @@ namespace MikuMikuWorld
 			ImGui::TextUnformatted("Original Fork by:");
 			ImGui::SameLine();
 			ImGui::TextLinkOpenURL("https://github.com/watagashi-uni/", "https://github.com/watagashi-uni/");
-			ImGui::TextWrapped("Android port by: -YOUKAI- (Discord @desktop2202)");
+			ImGui::TextWrapped("Android port by: -YOUKAI- and the (Discord @desktop2202, @blandora2000)");
 			ImGui::Spacing();
 			if (ImGui::Button("Continue", { ImGui::GetContentRegionAvail().x, 0.0f }))
 			{

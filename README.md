@@ -72,7 +72,7 @@ not included in the public source; the renderer falls back to the bundled font.
 
 - Original project: [crash5band/MikuMikuWorld](https://github.com/crash5band/MikuMikuWorld)
 - Original fork: [watagashi-uni](https://github.com/watagashi-uni/)
-- Android port: **-YOUKAI- (Discord @desktop2202)**
+- Android port: **-YOUKAI- and the (Discord @desktop2202, blandora2000)**
 - SEKAI overlay reference: [TootieJin/pjsekai-overlay-APPEND](https://github.com/TootieJin/pjsekai-overlay-APPEND)
 
 This fork is distributed under **AGPL-3.0-only**. Preserve [LICENSE](LICENSE),
