@@ -1,7 +1,7 @@
 #include <chrono>
 #include <cstdio>
 static double gExpReadMs = 0, gExpWriteMs = 0;
-extern double gPv[7];
+extern double gPv[8];
 double gExpTimelineMs = 0, gExpPreviewMs = 0;
 static std::chrono::steady_clock::time_point gExpStart;
 #include "Application.h"
@@ -1549,9 +1549,9 @@ namespace MikuMikuWorld
                                 gExpTimelineMs / frames, gExpPreviewMs / frames,
                                 (totalMs - gExpReadMs - gExpWriteMs - gExpTimelineMs - gExpPreviewMs) / frames);
                         char timing2[200];
-                        std::snprintf(timing2, sizeof(timing2), " | bg %.1f, stage %.1f, lines %.1f, under %.1f, notes %.1f, fx %.1f, hud %.1f",
+                        std::snprintf(timing2, sizeof(timing2), " | bg %.1f, fxupd %.1f, lines %.1f, under %.1f, notes %.1f, fx %.1f, hud %.1f, dstage %.1f",
                                 gPv[0] / frames, gPv[1] / frames, gPv[2] / frames, gPv[3] / frames,
-                                gPv[4] / frames, gPv[5] / frames, gPv[6] / frames);
+                                gPv[4] / frames, gPv[5] / frames, gPv[6] / frames, gPv[7] / frames);
                         resultMessage = std::string(getString("export_mp4_success")) + timing + timing2;
                 }
 		else

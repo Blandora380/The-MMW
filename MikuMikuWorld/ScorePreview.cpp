@@ -1,5 +1,5 @@
 #include <chrono>
-double gPv[7] = {};
+double gPv[8] = {};
 static std::chrono::steady_clock::time_point gPvT;
 #define PV_RESET() (gPvT = std::chrono::steady_clock::now())
 #define PV_LAP(i) do { const auto n_ = std::chrono::steady_clock::now(); gPv[i] += std::chrono::duration<double, std::milli>(n_ - gPvT).count(); gPvT = n_; } while (0)
@@ -1080,7 +1080,8 @@ namespace MikuMikuWorld
                 drawStage(renderer);
 		renderer->endBatch();
 
-		context.scorePreviewDrawData.effectView.updateEffects(context, noteEffectsCamera, currentTime);
+		PV_LAP(7);
+                context.scorePreviewDrawData.effectView.updateEffects(context, noteEffectsCamera, currentTime);
 
 		shader->use();
 		shader->setMatrix4("projection", viewProjection);
