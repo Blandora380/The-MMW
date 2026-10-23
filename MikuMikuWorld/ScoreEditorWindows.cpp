@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstdio>
 static double gExpReadMs = 0, gExpWriteMs = 0;
+double gExpTimelineMs = 0, gExpPreviewMs = 0;
 static std::chrono::steady_clock::time_point gExpStart;
 #include "Application.h"
 #include "ScoreEditorWindows.h"
@@ -1486,7 +1487,7 @@ namespace MikuMikuWorld
 		exporting = true;
 		#if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
 		AndroidFileDialog_ShowExportVideoPlayer();
-                gExpReadMs = 0; gExpWriteMs = 0; gExpStart = std::chrono::steady_clock::now();
+                gExpReadMs = 0; gExpWriteMs = 0; gExpTimelineMs = 0; gExpPreviewMs = 0; gExpStart = std::chrono::steady_clock::now();
 		AndroidFileDialog_UpdateExportProgress(0, totalFrames);
 		#endif
 		return true;
@@ -1538,10 +1539,11 @@ namespace MikuMikuWorld
 			{
                         const double totalMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - gExpStart).count();
                         const double frames = static_cast<double>(std::max<uint64_t>(framesWritten, 1));
-                        char timing[160];
-                        std::snprintf(timing, sizeof(timing), " | %.1f ms/frame: read %.1f, write %.1f, other %.1f",
+                        char timing[256];
+                        std::snprintf(timing, sizeof(timing), " | %.1f ms/frame: read %.1f, write %.1f, timeline %.1f, preview %.1f, rest %.1f",
                                 totalMs / frames, gExpReadMs / frames, gExpWriteMs / frames,
-                                (totalMs - gExpReadMs - gExpWriteMs) / frames);
+                                gExpTimelineMs / frames, gExpPreviewMs / frames,
+                                (totalMs - gExpReadMs - gExpWriteMs - gExpTimelineMs - gExpPreviewMs) / frames);
                         resultMessage = std::string(getString("export_mp4_success")) + timing;
                 }
 		else

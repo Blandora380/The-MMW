@@ -1,3 +1,5 @@
+#include <chrono>
+extern double gExpTimelineMs, gExpPreviewMs;
 #include "Application.h"
 #include "ApplicationConfiguration.h"
 #if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
@@ -194,7 +196,9 @@ namespace MikuMikuWorld
 		const bool timeline_just_created = (ImGui::FindWindowByName("###notes_timeline") == NULL);
 		ImGui::Begin(IMGUI_TITLE(ICON_FA_MUSIC, "notes_timeline"), NULL, ImGuiWindowFlags_Static | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 		ImGuiID dockId = ImGui::GetWindowDockID();
-		timeline.update(context, edit, renderer.get());
+		const auto tTl0 = std::chrono::steady_clock::now();
+                timeline.update(context, edit, renderer.get());
+                gExpTimelineMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tTl0).count();
 		mp4ExportWindow.prepareFrame(context, timeline, preview);
 		ImGui::End();
 
@@ -223,7 +227,9 @@ namespace MikuMikuWorld
 			ImGui::Begin(IMGUI_TITLE(ICON_FA_OBJECT_GROUP, "score_preview"), NULL, previewWindowFlags);
 		}
 
-		preview.update(context, renderer.get());
+		const auto tPv0 = std::chrono::steady_clock::now();
+                preview.update(context, renderer.get());
+                gExpPreviewMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - tPv0).count();
 		mp4ExportWindow.captureFrame(context, timeline, preview);
 		preview.updateUI(timeline, context);
 		ImGui::End();
