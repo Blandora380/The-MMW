@@ -1692,13 +1692,13 @@ namespace MikuMikuWorld
 
 					if (scoreGain > 0)
 					{
-						const float popupSizeScale = std::clamp(config.pvScorePopupSize, 50.0f, 200.0f) / 100.0f;
+						const float popupSizeScale = std::clamp(config.pvScorePopupSize, 50.0f, 200.0f) / 100.0f * 0.92f;
 						const float slideProgress = clamp01(popupElapsed / 0.12f);
 						const float popupX = px(450.0f + std::clamp(config.pvScorePopupOffsetX, -400.0f, 400.0f))
 							- ps(18.0f) * popupSizeScale * (1.0f - slideProgress);
-						const float popupY = topPy(91.0f + std::clamp(config.pvScorePopupOffsetY, -250.0f, 250.0f));
+						const float popupY = topPy(94.0f + std::clamp(config.pvScorePopupOffsetY, -250.0f, 250.0f));
 						const float fadeOut = clamp01((popupDuration - popupElapsed) / 0.18f);
-						const float alpha = clamp01(popupElapsed / 0.05f) * fadeOut;
+						const float alpha = (0.5f + 0.5f * slideProgress) * fadeOut;
 						const float digitHeight = scoreS(22.0f) * popupSizeScale;
 						const float digitGap = scoreS(16.0f) * popupSizeScale;
 						const float plusHeight = digitHeight * 0.58f;
@@ -1752,7 +1752,7 @@ namespace MikuMikuWorld
 				if (!shadow || !main)
 					continue;
 
-				const float slotX = 1442.0f + 319.0f - static_cast<float>(i) * 22.0f;
+				const float slotX = 1442.0f + 305.0f - static_cast<float>(i) * 22.0f;
 				const float slotY = 21.0f;
 				const float shadowHeight = ps(37.0f);
 				const float mainHeight = ps(34.0f);
