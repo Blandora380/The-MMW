@@ -1777,7 +1777,7 @@ namespace MikuMikuWorld
 				constexpr float comboTagHeight = 42.0f;
 				const float comboTagGlowWidth = comboTagWidth * (static_cast<float>(comboTagGlow->getWidth()) / static_cast<float>(comboTag->getWidth()));
 				const float comboTagGlowHeight = comboTagHeight * (static_cast<float>(comboTagGlow->getHeight()) / static_cast<float>(comboTag->getHeight()));
-                                const float tagCenterY = py(comboGroupY(478.0f - 67.0f));
+                                const float tagCenterY = py(comboGroupY(478.0f)) - ps(comboGroupS(67.0f));
 				drawComboImage(
 					drawList,
 					*comboTagGlow,
@@ -1819,8 +1819,8 @@ namespace MikuMikuWorld
 				{
 					const float left = (static_cast<float>(i) - mid + 0.5f) * COMBO_DIGIT_STEP * layerScale;
 					const float centerX = px(comboGroupX(1634.0f)) + ps(comboGroupS(left));
-					const float centerY = comboGroupY(478.0f + comboCenterYOffset * layerScale);
-					return ImVec2(centerX, py(centerY));
+					const float centerY = py(comboGroupY(478.0f)) + ps(comboGroupS(comboCenterYOffset * layerScale));
+					return ImVec2(centerX, centerY);
 				};
 
 				auto drawDigitLayer = [&](const Texture& texture, float layerScale, float alpha)
