@@ -1,3 +1,6 @@
+#ifdef __ANDROID__
+#include "AndroidImGuiBackend.h"
+#endif
 #include <chrono>
 extern double gExpTimelineMs, gExpPreviewMs;
 #include "Application.h"
@@ -191,6 +194,15 @@ namespace MikuMikuWorld
 		settingsWindow.update();
 		aboutDialog.update();
 		mp4ExportWindow.update(context, timeline, preview);
+#ifdef __ANDROID__
+                {
+                        const int multiTap = AndroidImGui_ConsumeMultiTap();
+                        if (multiTap == 2 && context.history.hasUndo() && !UI::isAnyPopupOpen())
+                                context.undo();
+                        else if (multiTap == 3 && !UI::isAnyPopupOpen())
+                                timeline.setPlaying(context, !timeline.isPlaying());
+                }
+#endif
 		serializeWindow.update(*this, context, timeline);
 
 		const bool timeline_just_created = (ImGui::FindWindowByName("###notes_timeline") == NULL);

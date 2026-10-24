@@ -20,6 +20,7 @@ namespace MikuMikuWorld
 	void AndroidImGui_QueueText(const char* utf8);
 	void AndroidImGui_QueueKey(int keyCode, bool down);
 	float AndroidImGui_ConsumePinchZoom();
+        int AndroidImGui_ConsumeMultiTap();
 	float AndroidImGui_GetDensity();
 	void AndroidRequestExit();
 	bool AndroidExitRequested();

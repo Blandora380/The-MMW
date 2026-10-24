@@ -35,6 +35,19 @@ namespace MikuMikuWorld
 		float pinchPreviousDistance = 0.0f;
 		float pinchBaseDistance = 0.0f;
 		float pendingPinchZoom = 0.0f;
+            bool leftDownPending = false;
+            bool multiTapTravel = false;
+            int multiTapMaxPointers = 0;
+            int pendingMultiTap = 0;
+
+            void flushDeferredDown(ImGuiIO& io)
+            {
+                if (!leftDownPending)
+                    return;
+                leftDownPending = false;
+                io.AddMousePosEvent(touchOriginX, touchOriginY);
+                io.AddMouseButtonEvent(0, true);
+            }
 		bool shouldExit = false;
 		std::mutex inputMutex;
 		std::vector<std::pair<int, bool>> queuedKeys;
@@ -131,6 +144,8 @@ namespace MikuMikuWorld
 		io.DisplaySize = ImVec2(viewportWidth / density, viewportHeight / density);
 		io.DisplayFramebufferScale = ImVec2(density, density);
 		io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
+                if (leftDownPending && std::chrono::steady_clock::now() - touchDownAt >= std::chrono::milliseconds(45))
+                        flushDeferredDown(io);
 		if (touchDown && !touchMoved && !touchLongPressTriggered &&
 			std::chrono::steady_clock::now() - touchDownAt >= std::chrono::milliseconds(600))
 		{
@@ -175,7 +190,14 @@ namespace MikuMikuWorld
 		return delta;
 	}
 
-	void AndroidImGui_HandleMotion(AInputEvent* event)
+	int AndroidImGui_ConsumeMultiTap()
+        {
+                const int value = pendingMultiTap;
+                pendingMultiTap = 0;
+                return value;
+        }
+
+        void AndroidImGui_HandleMotion(AInputEvent* event)
 	{
 		if (AInputEvent_getType(event) != AINPUT_EVENT_TYPE_MOTION)
 			return;
@@ -199,7 +221,8 @@ namespace MikuMikuWorld
 		// only by a stationary single-finger hold.
 		if (actionType == AMOTION_EVENT_ACTION_POINTER_DOWN || pointerCount > 1)
 		{
-			if (pointerCount >= 2)
+			multiTapMaxPointers = std::max(multiTapMaxPointers, static_cast<int>(pointerCount));
+                        if (pointerCount >= 2)
 			{
 				const float x0 = AMotionEvent_getX(event, 0);
 				const float y0 = AMotionEvent_getY(event, 0);
@@ -220,10 +243,14 @@ namespace MikuMikuWorld
 				{
 					pendingPinchZoom += (distance - pinchPreviousDistance) / pinchBaseDistance;
 					pinchPreviousDistance = distance;
+                                        if (std::abs(distance - pinchBaseDistance) > 30.0f * density)
+                                                multiTapTravel = true;
 				}
 			}
-			if (touchDown)
-				io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+			if (leftDownPending)
+                                leftDownPending = false;
+                        else if (touchDown)
+                                io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
 			io.AddMouseButtonEvent(ImGuiMouseButton_Right, false);
 			io.ConfigDragClickToInputText = false;
 			touchDown = false;
@@ -238,8 +265,14 @@ namespace MikuMikuWorld
 			io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
 			io.AddMouseButtonEvent(ImGuiMouseButton_Right, false);
 			if (actionType == AMOTION_EVENT_ACTION_UP || actionType == AMOTION_EVENT_ACTION_CANCEL)
-			{
-				multiTouchBlocked = false;
+                        {
+                                if (actionType == AMOTION_EVENT_ACTION_UP && !multiTapTravel &&
+                                        (multiTapMaxPointers == 2 || multiTapMaxPointers == 3) &&
+                                        std::chrono::steady_clock::now() - touchDownAt <= std::chrono::milliseconds(300))
+                                        pendingMultiTap = multiTapMaxPointers;
+                                multiTapMaxPointers = 0;
+                                multiTapTravel = false;
+                                multiTouchBlocked = false;
 				pinchActive = false;
 			}
 			touchDown = false;
@@ -260,7 +293,9 @@ namespace MikuMikuWorld
 			// Reset it at the next touch so it cannot affect later gestures.
 			io.ConfigDragClickToInputText = false;
 			io.AddMouseButtonEvent(ImGuiMouseButton_Right, false);
-			io.AddMouseButtonEvent(0, true);
+			leftDownPending = true;
+                        multiTapMaxPointers = 1;
+                        multiTapTravel = false;
 		}
 		else if (actionType == AMOTION_EVENT_ACTION_MOVE)
 		{
@@ -270,13 +305,30 @@ namespace MikuMikuWorld
 				const float dx = x - touchOriginX;
 				const float dy = y - touchOriginY;
 				if (dx * dx + dy * dy > touchSlop * touchSlop)
-					touchMoved = true;
+                                {
+                                        touchMoved = true;
+                                        if (leftDownPending)
+                                        {
+                                                flushDeferredDown(io);
+                                                io.AddMousePosEvent(x, y);
+                                        }
+                                }
 				previousTouchX = x;
 				previousTouchY = y;
 			}
 		}
 		else if (actionType == AMOTION_EVENT_ACTION_UP || actionType == AMOTION_EVENT_ACTION_CANCEL)
-		{
+                {
+                        if (leftDownPending)
+                        {
+                                if (actionType == AMOTION_EVENT_ACTION_UP)
+                                {
+                                        flushDeferredDown(io);
+                                        io.AddMousePosEvent(x, y);
+                                }
+                                else
+                                        leftDownPending = false;
+                        }
 			if (actionType == AMOTION_EVENT_ACTION_UP && touchDown && !touchMoved)
 			{
 				const bool heldLongEnough = std::chrono::steady_clock::now() - touchDownAt >= std::chrono::milliseconds(600);

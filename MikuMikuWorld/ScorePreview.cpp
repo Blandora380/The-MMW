@@ -623,9 +623,9 @@ namespace MikuMikuWorld
 				toImTextureID(texture),
 				ImVec2(x, y),
 				ImVec2(x + width, y + height),
-				ImVec2(0.0f, 0.0f),
-				ImVec2(1.0f, 1.0f),
-				IM_COL32(255, 255, 255, value)
+				ImVec2(0.5f / texture.getWidth(), 0.5f / texture.getHeight()),
+                                ImVec2(1.0f - 0.5f / texture.getWidth(), 1.0f - 0.5f / texture.getHeight()),
+                                IM_COL32(255, 255, 255, value)
 			);
 		}
 
@@ -1780,7 +1780,7 @@ namespace MikuMikuWorld
 				drawComboImage(
 					drawList,
 					*comboTagGlow,
-					px(comboGroupX(1634.0f - comboTagGlowWidth * 0.5f)),
+					px(comboGroupX(1634.0f)) - ps(comboGroupS(comboTagGlowWidth * 0.5f)),
 					py(comboGroupY((478.0f - 70.0f) - comboTagGlowHeight * 0.5f)),
 					ps(comboGroupS(comboTagGlowWidth)),
 					ps(comboGroupS(comboTagGlowHeight)),
@@ -1789,7 +1789,7 @@ namespace MikuMikuWorld
 				drawComboImage(
 					drawList,
 					*comboTag,
-					px(comboGroupX(1634.0f - comboTagWidth * 0.5f)),
+					px(comboGroupX(1634.0f)) - ps(comboGroupS(comboTagWidth * 0.5f)),
 					py(comboGroupY(478.0f - 67.0f - comboTagHeight * 0.5f)),
 					ps(comboGroupS(comboTagWidth)),
 					ps(comboGroupS(comboTagHeight)),

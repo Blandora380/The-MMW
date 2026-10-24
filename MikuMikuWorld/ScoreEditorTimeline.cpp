@@ -1703,7 +1703,8 @@ namespace MikuMikuWorld
 		ImVec2 sz{ noteControlWidth, notesHeight };
 
 		const ImGuiIO& io = ImGui::GetIO();
-		if (ImGui::IsMouseHoveringRect(pos, pos + noteSz, false) && mouseInTimeline)
+		const float touchPad = io.MouseSource == ImGuiMouseSource_TouchScreen ? 10.0f : 0.0f;
+                if (ImGui::IsMouseHoveringRect(ImVec2(pos.x - touchPad, pos.y), ImVec2(pos.x + noteSz.x + touchPad, pos.y + noteSz.y), false) && mouseInTimeline)
 		{
 			isHoveringNote = true;
 
@@ -1735,7 +1736,7 @@ namespace MikuMikuWorld
 
 		// Left resize
 		ImGui::PushID(note.ID);
-		if (noteControl(context, pos, sz, "L", ImGuiMouseCursor_ResizeEW))
+		if (noteControl(context, ImVec2(pos.x - touchPad, pos.y), ImVec2(sz.x + touchPad, sz.y), "L", ImGuiMouseCursor_ResizeEW))
 		{
 			int curLane = std::clamp(positionToLane(mousePos.x), MIN_LANE, MAX_LANE);
 			int grabLane = std::clamp(positionToLane(ctrlMousePos.x), MIN_LANE, MAX_LANE);
@@ -1855,7 +1856,7 @@ namespace MikuMikuWorld
 		sz.x = noteControlWidth;
 
 		// Right resize
-		if (noteControl(context, pos, sz, "R", ImGuiMouseCursor_ResizeEW))
+		if (noteControl(context, pos, ImVec2(sz.x + touchPad, sz.y), "R", ImGuiMouseCursor_ResizeEW))
 		{
 			int grabLane = std::clamp(positionToLane(ctrlMousePos.x), MIN_LANE, MAX_LANE);
 			int curLane = std::clamp(positionToLane(mousePos.x), MIN_LANE, MAX_LANE);
