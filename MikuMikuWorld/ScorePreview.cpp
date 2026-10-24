@@ -1694,7 +1694,7 @@ namespace MikuMikuWorld
 					{
 						const float popupSizeScale = std::clamp(config.pvScorePopupSize, 50.0f, 200.0f) / 100.0f * 0.92f;
 						const float slideProgress = clamp01(popupElapsed / 0.12f);
-						const float popupX = px(450.0f + std::clamp(config.pvScorePopupOffsetX, -400.0f, 400.0f))
+						const float popupX = (position.x + ps(450.0f + std::clamp(config.pvScorePopupOffsetX, -400.0f, 400.0f)))
 							- ps(30.0f) * popupSizeScale * (1.0f - slideProgress);
 						const float popupY = topPy(94.0f + std::clamp(config.pvScorePopupOffsetY, -250.0f, 250.0f));
 						const float fadeOut = clamp01((popupDuration - popupElapsed) / 0.18f);
@@ -1752,13 +1752,13 @@ namespace MikuMikuWorld
 				if (!shadow || !main)
 					continue;
 
-				const float slotX = 1442.0f + 305.0f - static_cast<float>(i) * 22.0f;
+				const float slotX = 305.0f - static_cast<float>(i) * 22.0f;
 				const float slotY = 21.0f;
 				const float shadowHeight = ps(37.0f);
 				const float mainHeight = ps(34.0f);
 				const float shadowWidth = shadowHeight * (static_cast<float>(shadow->getWidth()) / static_cast<float>(shadow->getHeight()));
 				const float mainWidth = mainHeight * (static_cast<float>(main->getWidth()) / static_cast<float>(main->getHeight()));
-				const float centerX = px(slotX + 13.0f);
+				const float centerX = px(1442.0f) + ps(slotX + 13.0f);
 				drawComboImage(drawList, *shadow, centerX - shadowWidth * 0.5f, topPy(slotY - 2.0f), shadowWidth, shadowHeight, 1.0f);
 				drawComboImage(drawList, *main, centerX - mainWidth * 0.5f, topPy(slotY), mainWidth, mainHeight, 1.0f);
 			}
@@ -1817,9 +1817,9 @@ namespace MikuMikuWorld
 				auto digitCenter = [&](float layerScale)
 				{
 					const float left = (static_cast<float>(i) - mid + 0.5f) * COMBO_DIGIT_STEP * layerScale;
-					const float centerX = comboGroupX(1634.0f + left);
+					const float centerX = px(comboGroupX(1634.0f)) + ps(comboGroupS(left));
 					const float centerY = comboGroupY(478.0f + comboCenterYOffset * layerScale);
-					return ImVec2(px(centerX), py(centerY));
+					return ImVec2(centerX, py(centerY));
 				};
 
 				auto drawDigitLayer = [&](const Texture& texture, float layerScale, float alpha)
