@@ -1696,7 +1696,7 @@ namespace MikuMikuWorld
 						const float slideProgress = clamp01(popupElapsed / 0.12f);
 						const float popupX = (position.x + ps(450.0f + std::clamp(config.pvScorePopupOffsetX, -400.0f, 400.0f)))
 							- ps(30.0f) * popupSizeScale * (1.0f - slideProgress);
-						const float popupY = topPy(94.0f + std::clamp(config.pvScorePopupOffsetY, -250.0f, 250.0f));
+						const float popupY = position.y + ps(112.0f + std::clamp(config.pvScorePopupOffsetY, -250.0f, 250.0f));
 						const float fadeOut = clamp01((popupDuration - popupElapsed) / 0.18f);
 						const float alpha = (0.25f + 0.75f * slideProgress) * fadeOut;
 						const float digitHeight = scoreS(22.0f) * popupSizeScale;
