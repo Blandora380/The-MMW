@@ -600,9 +600,10 @@ namespace MikuMikuWorld
 					offset += scrollAmount * (io.KeyShift ? config.scrollSpeedShift : config.scrollSpeedNormal);
 				}
 
-				if (!isHoveringNote && !isHoldingNote && !insertingHold && !pasting && currentMode == TimelineMode::Select)
+				if (!isHoveringNote && !isHoldingNote && !insertingHold && !pasting)
 				{
 					const bool touchInput = io.MouseSource == ImGuiMouseSource_TouchScreen;
+                                        const bool selectMode = currentMode == TimelineMode::Select;
 					const ImVec2 touchStart = io.MouseClickedPos[ImGuiMouseButton_Left] - position;
 					const bool touchStartedInLanes = touchStart.x >= laneOffset && touchStart.x < laneOffset + NUM_LANES * laneWidth;
 
@@ -610,7 +611,7 @@ namespace MikuMikuWorld
 					if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 					{
 						touchPanning = touchInput && clickedOnTimeline && !touchStartedInLanes;
-						if (!touchInput || touchStartedInLanes)
+						if (selectMode && (!touchInput || touchStartedInLanes))
 						{
 							dragStart = mousePos;
 							if (!io.KeyCtrl && !io.KeyAlt && !ImGui::IsPopupOpen(IMGUI_TITLE(ICON_FA_MUSIC, "notes_timeline")))
@@ -634,7 +635,7 @@ namespace MikuMikuWorld
 					}
 
 					// Clicked and dragging inside the timeline
-					if (clickedOnTimeline && (!touchInput || touchStartedInLanes) && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::IsAnyItemHovered() && ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left, 10.0f) && !playing)
+					if (selectMode && clickedOnTimeline && (!touchInput || touchStartedInLanes) && ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::IsAnyItemHovered() && ImGui::IsMouseDragPastThreshold(ImGuiMouseButton_Left, 10.0f) && !playing)
 						dragging = true;
 				}
 
@@ -1241,7 +1242,7 @@ namespace MikuMikuWorld
 				context.confirmPaste();
 		}
 
-		if (mouseInTimeline && !isHoldingNote && (currentMode != TimelineMode::Select || insertingFever) &&
+		if (mouseInTimeline && !isHoldingNote && !touchPanning && (currentMode != TimelineMode::Select || insertingFever) &&
 			!pasting && !playing && !UI::isAnyPopupOpen())
 		{
 			renderer->beginBatch();
