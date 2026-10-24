@@ -1696,7 +1696,7 @@ namespace MikuMikuWorld
 						const float slideProgress = clamp01(popupElapsed / 0.12f);
 						const float popupX = (position.x + ps(450.0f + std::clamp(config.pvScorePopupOffsetX, -400.0f, 400.0f)))
 							- ps(30.0f) * popupSizeScale * (1.0f - slideProgress);
-						const float popupY = position.y + ps(112.0f + std::clamp(config.pvScorePopupOffsetY, -250.0f, 250.0f));
+						const float popupY = position.y + ps(108.0f + std::clamp(config.pvScorePopupOffsetY, -250.0f, 250.0f));
 						const float fadeOut = clamp01((popupDuration - popupElapsed) / 0.18f);
 						const float alpha = (0.25f + 0.75f * slideProgress) * fadeOut;
 						const float digitHeight = scoreS(22.0f) * popupSizeScale;
@@ -1777,11 +1777,12 @@ namespace MikuMikuWorld
 				constexpr float comboTagHeight = 42.0f;
 				const float comboTagGlowWidth = comboTagWidth * (static_cast<float>(comboTagGlow->getWidth()) / static_cast<float>(comboTag->getWidth()));
 				const float comboTagGlowHeight = comboTagHeight * (static_cast<float>(comboTagGlow->getHeight()) / static_cast<float>(comboTag->getHeight()));
+                                const float tagCenterY = py(comboGroupY(478.0f - 67.0f));
 				drawComboImage(
 					drawList,
 					*comboTagGlow,
 					px(comboGroupX(1634.0f)) - ps(comboGroupS(comboTagGlowWidth * 0.5f)),
-					py(comboGroupY((478.0f - 70.0f) - comboTagGlowHeight * 0.5f)),
+					tagCenterY - ps(comboGroupS(3.0f)) - ps(comboGroupS(comboTagGlowHeight)) * 0.5f,
 					ps(comboGroupS(comboTagGlowWidth)),
 					ps(comboGroupS(comboTagGlowHeight)),
 					pulseAlpha
@@ -1790,7 +1791,7 @@ namespace MikuMikuWorld
 					drawList,
 					*comboTag,
 					px(comboGroupX(1634.0f)) - ps(comboGroupS(comboTagWidth * 0.5f)),
-					py(comboGroupY(478.0f - 67.0f - comboTagHeight * 0.5f)),
+					tagCenterY - ps(comboGroupS(comboTagHeight)) * 0.5f,
 					ps(comboGroupS(comboTagWidth)),
 					ps(comboGroupS(comboTagHeight)),
 					1.0f
