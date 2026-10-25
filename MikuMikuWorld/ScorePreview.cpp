@@ -1191,10 +1191,13 @@ namespace MikuMikuWorld
                         data.beginPlaytest(context.score, now);
                         playtestPointers.clear();
                         std::fill(std::begin(playtestLaneMoveAt), std::end(playtestLaneMoveAt), -1.0);
+                        data.effectView.reset();
                 }
                 if (!playbackState.isPlaying)
                 {
                         playtestPointers.clear();
+                        data.playtestHits.clear();
+                        data.playtestHitTime.clear();
                         return;
                 }
 
