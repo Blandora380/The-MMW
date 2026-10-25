@@ -2943,7 +2943,7 @@ namespace MikuMikuWorld
 
 		static auto singleNoteSEFunc = [&context, this](const Note& note, float notePlayTime)
 		{
-			bool playSE = true;
+			bool playSE = !(note.getType() == NoteType::Tap && context.scorePreviewDrawData.playtestActive);
 			if (note.getType() == NoteType::Hold)
 			{
 				playSE = context.score.holdNotes.at(note.ID).startType == HoldNoteType::Normal;
