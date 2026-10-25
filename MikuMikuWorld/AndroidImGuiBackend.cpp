@@ -1,3 +1,5 @@
+#include <vector>
+#include <chrono>
 #include "AndroidImGuiBackend.h"
 
 #ifdef __ANDROID__
@@ -197,6 +199,28 @@ namespace MikuMikuWorld
                 return value;
         }
 
+        struct PendingTouchDown
+        {
+                float x;
+                float y;
+                std::chrono::steady_clock::time_point time;
+        };
+        static std::vector<PendingTouchDown> pendingTouchDowns;
+
+        int AndroidImGui_ConsumeTouchDowns(AndroidTouchDown* out, int maxCount)
+        {
+                const auto now = std::chrono::steady_clock::now();
+                int count = 0;
+                for (const auto& t : pendingTouchDowns)
+                {
+                        if (count >= maxCount)
+                                break;
+                        out[count++] = { t.x, t.y, std::chrono::duration<double>(now - t.time).count() };
+                }
+                pendingTouchDowns.clear();
+                return count;
+        }
+
         void AndroidImGui_HandleMotion(AInputEvent* event)
 	{
 		if (AInputEvent_getType(event) != AINPUT_EVENT_TYPE_MOTION)
@@ -211,6 +235,8 @@ namespace MikuMikuWorld
 
 		const float x = (AMotionEvent_getX(event, index) - viewportLeft) / density;
 		const float y = (AMotionEvent_getY(event, index) - viewportTop) / density;
+                if ((actionType == AMOTION_EVENT_ACTION_DOWN || actionType == AMOTION_EVENT_ACTION_POINTER_DOWN) && pendingTouchDowns.size() < 64)
+                        pendingTouchDowns.push_back({ x, y, std::chrono::steady_clock::now() });
 		ImGuiIO& io = ImGui::GetIO();
 		io.AddMousePosEvent(x, y);
 

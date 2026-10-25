@@ -21,6 +21,8 @@ namespace MikuMikuWorld
 	void AndroidImGui_QueueKey(int keyCode, bool down);
 	float AndroidImGui_ConsumePinchZoom();
         int AndroidImGui_ConsumeMultiTap();
+        struct AndroidTouchDown { float x; float y; double ageSec; };
+        int AndroidImGui_ConsumeTouchDowns(AndroidTouchDown* out, int maxCount);
 	float AndroidImGui_GetDensity();
 	void AndroidRequestExit();
 	bool AndroidExitRequested();
