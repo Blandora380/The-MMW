@@ -1943,10 +1943,11 @@ namespace MikuMikuWorld
 						rawScale = (2.0f / 3.0f) - std::pow(-1.45f + progressFrames / 4.0f, 4.0f) * (2.0f / 3.0f);
 
 					const float scale = std::max(0.01f, rawScale * 1.5f);
-					const float judgeWidth = 310.0f * scale;
-					const float judgeHeight = 81.0f * scale;
-					drawImage(
-						getHudTexture(std::string("judge/") + drawData.judgeNameAt(latestJudgeIndex) + ".png"),
+					const Texture* judgeTexture = getHudTexture(std::string("judge/") + drawData.judgeNameAt(latestJudgeIndex) + ".png");
+                                        const float judgeWidth = (judgeTexture ? static_cast<float>(judgeTexture->getWidth()) : 310.0f) * scale;
+                                        const float judgeHeight = (judgeTexture ? static_cast<float>(judgeTexture->getHeight()) : 81.0f) * scale;
+                                        drawImage(
+                                                judgeTexture,
 						960.0f - judgeWidth * 0.5f,
 						667.5f - judgeHeight * 0.5f,
 						judgeWidth,
