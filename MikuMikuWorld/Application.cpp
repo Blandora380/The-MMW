@@ -647,7 +647,8 @@ namespace MikuMikuWorld
 		ResourceManager::loadTexture(hudAssetsDir + "score/digit/plus.png");
 		ResourceManager::loadTexture(hudAssetsDir + "life/bg.png");
 		ResourceManager::loadTexture(hudAssetsDir + "life/normal.png");
-		ResourceManager::loadTexture(hudAssetsDir + "judge/perfect.png");
+		for (const char* judge : { "perfect", "great", "good", "bad", "miss" })
+                        ResourceManager::loadTexture(hudAssetsDir + "judge/" + judge + ".png");
 
 		const std::string startupWarningImage = appDir + "res/warning.png";
 		ResourceManager::loadTexture(startupWarningImage);

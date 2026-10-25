@@ -1,4 +1,5 @@
 #pragma once
+#include <unordered_map>
 #include <random>
 #include "Score.h"
 #include "Math.h"
@@ -76,6 +77,7 @@ namespace MikuMikuWorld::Engine
                 };
                 std::vector<PlaytestNote> playtestNotes;
                 bool playtestActive{ false };
+                std::unordered_map<int, double> playtestHitTime;
                 std::vector<std::pair<int, double>> playtestHits;
                 int playtestCombo{ 0 };
                 float playtestComboFactor{ 1.0f };

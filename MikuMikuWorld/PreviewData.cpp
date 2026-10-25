@@ -256,6 +256,7 @@ namespace MikuMikuWorld::Engine
                 playtestPrevScore = 0;
                 playtestLastEventTime = 0.0;
                 playtestHits.clear();
+                playtestHitTime.clear();
                 playtestActive = true;
         }
 
@@ -284,6 +285,7 @@ namespace MikuMikuWorld::Engine
                         return;
 
                 best->judged = true;
+                playtestHitTime[best->id] = touchTime;
                 const int kind = bestDelta <= 0.06 ? 0 : (bestDelta <= 0.09 ? 1 : (bestDelta <= 0.12 ? 2 : 3));
                 pushPlaytestEvent(*this, touchTime, kind, best->weight);
                 if (kind <= 2)
@@ -323,6 +325,7 @@ namespace MikuMikuWorld::Engine
                 hudJudgeKinds.clear();
                 playtestNotes.clear();
                 playtestActive = false;
+                playtestHitTime.clear();
                 playtestHits.clear();
 		effectView.reset();
 

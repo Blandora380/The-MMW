@@ -2054,11 +2054,21 @@ namespace MikuMikuWorld
 	
 		for (auto& note : drawData.drawingNotes)
 		{
-			if (scaled_tm < note.visualTime.min || scaled_tm > note.visualTime.max)
-				continue;
 			const Note& noteData = context.score.notes.at(note.refID);
-			double y = Engine::approach(note.visualTime.min, note.visualTime.max, scaled_tm);
-			float l = Engine::laneToLeft(noteData.lane), r = Engine::laneToLeft(noteData.lane) + noteData.width;
+                   double upperTime = note.visualTime.max;
+                   if (drawData.playtestActive && noteData.getType() == NoteType::Tap)
+                   {
+                           upperTime += (note.visualTime.max - note.visualTime.min) * 0.12;
+                           const auto hitIt = drawData.playtestHitTime.find(note.refID);
+                           if (hitIt != drawData.playtestHitTime.end() && current_tm >= hitIt->second)
+                                   continue;
+                   }
+                   if (scaled_tm < note.visualTime.min || scaled_tm > upperTime)
+                           continue;
+			double y = scaled_tm > note.visualTime.max
+                           ? std::pow(1.06, 45.0 * (scaled_tm - note.visualTime.max) / (note.visualTime.max - note.visualTime.min))
+                           : Engine::approach(note.visualTime.min, note.visualTime.max, scaled_tm);
+                   float l = Engine::laneToLeft(noteData.lane), r = Engine::laneToLeft(noteData.lane) + noteData.width;
 			drawNoteBase(renderer, noteData, l, r, y);
 			if (noteData.friction)
 				drawTraceDiamond(renderer, noteData, l, r, y);
