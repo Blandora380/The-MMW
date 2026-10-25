@@ -180,10 +180,14 @@ namespace MikuMikuWorld::Engine
 		}
 	}
 
-	static void pushPlaytestEvent(DrawData& d, double time, int kind, float weight)
+	static void pushPlaytestEvent(DrawData& d, double time, int kind, float weight, bool midHold = false)
         {
                 constexpr float multipliers[] = { 1.0f, 0.9f, 0.8f, 0.7f, 0.0f };
                 kind = std::clamp(kind, 0, 4);
+                if (kind == 3)
+                        d.playtestLife = std::max(0.0f, d.playtestLife - 50.0f);
+                else if (kind == 4)
+                        d.playtestLife = std::max(0.0f, d.playtestLife - (midHold ? 40.0f : 80.0f));
                 const float levelFactor = (SCORE_RATING - 5.0f) * 0.005f + 1.0f;
 
                 if (kind >= 2)
@@ -214,6 +218,7 @@ namespace MikuMikuWorld::Engine
                 d.hudComboValues.push_back(d.playtestCombo);
                 d.hudJudgeTimes.push_back(static_cast<float>(time));
                 d.hudJudgeKinds.push_back(kind);
+                d.hudLifeValues.push_back(d.playtestLife);
         }
 
         const char* DrawData::judgeNameAt(size_t index) const
@@ -239,6 +244,7 @@ namespace MikuMikuWorld::Engine
                 hudJudgeTimes.clear();
                 hudComboValues.clear();
                 hudJudgeKinds.clear();
+                hudLifeValues.clear();
                 playtestNotes.clear();
                 playtestHolds.clear();
                 playtestHits.clear();
@@ -340,6 +346,7 @@ namespace MikuMikuWorld::Engine
                 playtestCombo = 0;
                 playtestComboFactor = 1.0f;
                 playtestScore = 0.0f;
+                playtestLife = 1000.0f;
                 playtestPrevScore = 0;
                 playtestLastEventTime = 0.0;
                 playtestActive = true;
@@ -549,7 +556,7 @@ namespace MikuMikuWorld::Engine
                         {
                                 while (h.nextTick < h.ticks.size() && h.ticks[h.nextTick].first <= now)
                                 {
-                                        pushPlaytestEvent(*this, h.ticks[h.nextTick].first, 4, h.ticks[h.nextTick].second);
+                                        pushPlaytestEvent(*this, h.ticks[h.nextTick].first, 4, h.ticks[h.nextTick].second, true);
                                         ++h.nextTick;
                                 }
                                 if (now >= h.endTime)
@@ -576,6 +583,7 @@ namespace MikuMikuWorld::Engine
 		hudJudgeTimes.clear();
                 hudComboValues.clear();
                 hudJudgeKinds.clear();
+                hudLifeValues.clear();
                 playtestNotes.clear();
                 playtestActive = false;
                 playtestHolds.clear();

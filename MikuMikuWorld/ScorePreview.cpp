@@ -1893,7 +1893,8 @@ namespace MikuMikuWorld
 
 		if (config.pvDrawLifeHud)
 		{
-			constexpr float lifeRatio = 1.0f;
+			const float lifeRatio = latestComboIndex >= 0 && latestComboIndex < static_cast<int>(drawData.hudLifeValues.size())
+                        ? clamp01(drawData.hudLifeValues[latestComboIndex] / 1000.0f) : 1.0f;
 			drawTopImage(getHudTexture("life/bg.png"), 1442.0f, HUD_LIFE_Y, 444.0f, HUD_LIFE_HEIGHT);
 			drawTopImageClipX(getHudTexture("life/normal.png"), 1442.0f, HUD_LIFE_Y, 444.0f, HUD_LIFE_HEIGHT, lifeRatio);
 

@@ -65,6 +65,7 @@ namespace MikuMikuWorld::Engine
 		std::vector<float> hudJudgeTimes;
                 std::vector<int> hudComboValues;
                 std::vector<int> hudJudgeKinds;
+                std::vector<float> hudLifeValues;
 
                 struct PlaytestNote
                 {
@@ -97,6 +98,7 @@ namespace MikuMikuWorld::Engine
                 };
                 std::vector<PlaytestHold> playtestHolds;
                 bool playtestActive{ false };
+                float playtestLife{ 1000.0f };
                 std::unordered_map<int, double> playtestHitTime;
                 std::vector<std::pair<int, double>> playtestHits;
                 int playtestCombo{ 0 };
