@@ -1,5 +1,6 @@
 #include "Application.h"
 #include "ScoreSerializeWindow.h"
+#include <fstream>
 
 #include "CustomScoreJsonSerializer.h"
 #include "NativeScoreSerializer.h"
@@ -186,10 +187,22 @@ namespace MikuMikuWorld
 			return SerializeResult::Error;
 	}
 
+	static bool looksLikeLevelData(const std::string& filename)
+	{
+		if (filename.find("LevelData") != std::string::npos)
+			return true;
+		std::ifstream f(filename, std::ios::binary);
+		unsigned char magic[2] = { 0, 0 };
+		f.read(reinterpret_cast<char*>(magic), 2);
+		return f.gcount() == 2 && magic[0] == 0x1f && magic[1] == 0x8b;
+	}
+
 	DefaultScoreDeserializeController::DefaultScoreDeserializeController(const std::string& filename)
 	{
 		this->filename = filename;
 		SerializeFormat format = toSerializeFormat(filename);
+		if (!isValidFormat(format) && looksLikeLevelData(filename))
+			format = SerializeFormat::LvlDataFormat;
 		if (isValidFormat(format))
 		{
 			selectedFormat = format;
@@ -208,8 +221,10 @@ namespace MikuMikuWorld
 			deserializer = std::make_unique<SusSerializer>();
 			break;
 		case SerializeFormat::CustomScoreJsonFormat:
-		case SerializeFormat::LvlDataFormat:
 			deserializer = std::make_unique<CustomScoreJsonSerializer>();
+			break;
+		case SerializeFormat::LvlDataFormat:
+			deserializer = std::make_unique<SonolusSerializer>(std::make_unique<PySekaiEngine>(), false);
 			break;
 		default:
 			deserializer.reset();
@@ -274,7 +289,7 @@ namespace MikuMikuWorld
 				if (ImGui::BeginListBox("###score_format_list", { avail.x, avail.y - btnHeight - style.ItemSpacing.y * 2 }))
 				{
 					// Temporarily disable lvldata format
-					for (int i = 0, n = static_cast<int>(SerializeFormat::LvlDataFormat); i < n; ++i)
+					for (int i = 0, n = static_cast<int>(SerializeFormat::LvlDataFormat) + 1; i < n; ++i)
 					{
 						if (static_cast<SerializeFormat>(i) == SerializeFormat::SusWithoutNoteSpeedFormat)
 							continue;
