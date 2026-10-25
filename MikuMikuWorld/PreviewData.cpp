@@ -186,7 +186,7 @@ namespace MikuMikuWorld::Engine
                 kind = std::clamp(kind, 0, 4);
                 const float levelFactor = (SCORE_RATING - 5.0f) * 0.005f + 1.0f;
 
-                if (kind >= 3)
+                if (kind >= 2)
                 {
                         d.playtestCombo = 0;
                         d.playtestComboFactor = 1.0f;
@@ -265,7 +265,7 @@ namespace MikuMikuWorld::Engine
                 if (!playtestActive)
                         return;
 
-                constexpr double window = 0.15;
+                constexpr double window = 0.2;
                 PlaytestNote* best = nullptr;
                 double bestDelta = window + 1.0;
                 for (auto& n : playtestNotes)
@@ -286,7 +286,7 @@ namespace MikuMikuWorld::Engine
 
                 best->judged = true;
                 playtestHitTime[best->id] = touchTime;
-                const int kind = bestDelta <= 0.06 ? 0 : (bestDelta <= 0.09 ? 1 : (bestDelta <= 0.12 ? 2 : 3));
+                const int kind = bestDelta <= 0.08 ? 0 : (bestDelta <= 0.12 ? 1 : (bestDelta <= 0.16 ? 2 : 3));
                 pushPlaytestEvent(*this, touchTime, kind, best->weight);
                 if (kind <= 2)
                         playtestHits.emplace_back(best->id, touchTime);
@@ -297,7 +297,7 @@ namespace MikuMikuWorld::Engine
                 if (!playtestActive)
                         return;
 
-                constexpr double window = 0.15;
+                constexpr double window = 0.2;
                 for (auto& n : playtestNotes)
                 {
                         if (n.time > now - window)
