@@ -1,3 +1,7 @@
+#ifdef __ANDROID__
+#include "AndroidImGuiBackend.h"
+#endif
+#include <cstdio>
 #include <chrono>
 double gPv[8] = {};
 static std::chrono::steady_clock::time_point gPvT;
@@ -1165,6 +1169,33 @@ namespace MikuMikuWorld
                                 const ImU32 color = (lane % 2) ? IM_COL32(255, 255, 0, 220) : IM_COL32(0, 255, 255, 220);
                                 drawList->AddLine(ImVec2(x, judgeY - 40.0f * sy), ImVec2(x, judgeY + 40.0f * sy), color, 2.0f);
                         }
+#ifdef __ANDROID__
+                        {
+                                static std::vector<std::pair<ImVec2, float>> touchMarks;
+                                AndroidTouchDown downs[16];
+                                const int downCount = AndroidImGui_ConsumeTouchDowns(downs, 16);
+                                for (int i = 0; i < downCount; ++i)
+                                        if (downs[i].ageSec < 0.3)
+                                                touchMarks.push_back({ ImVec2(downs[i].x, downs[i].y), 0.6f });
+
+                                const float dt = ImGui::GetIO().DeltaTime;
+                                for (auto& mark : touchMarks)
+                                {
+                                        const float laneF = ((mark.first.x - position.x) / sx - width * 0.5f) / scaledWidth + 6.0f;
+                                        const int lane = static_cast<int>(std::floor(laneF));
+                                        const bool inLane = lane >= 0 && lane < 12;
+                                        drawList->AddCircleFilled(mark.first, 30.0f, inLane ? IM_COL32(255, 80, 160, 230) : IM_COL32(160, 160, 160, 200));
+                                        if (inLane)
+                                        {
+                                                char label[8];
+                                                std::snprintf(label, sizeof(label), "%d", lane + 1);
+                                                drawList->AddText(ImVec2(mark.first.x - 6.0f, mark.first.y - 40.0f), IM_COL32(255, 255, 255, 255), label);
+                                        }
+                                        mark.second -= dt;
+                                }
+                                touchMarks.erase(std::remove_if(touchMarks.begin(), touchMarks.end(), [](const auto& m) { return m.second <= 0.0f; }), touchMarks.end());
+                        }
+#endif
                 }
 	}
 
