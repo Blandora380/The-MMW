@@ -13,7 +13,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 9.1.0
+      - name: Restore keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/mmw.keystore"
       - run: gradle -p android :sekaiLive:assembleDebug
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/mmw.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       - uses: actions/upload-artifact@v4
         with:
           name: apk
