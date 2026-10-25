@@ -1153,7 +1153,19 @@ namespace MikuMikuWorld
 		PV_LAP(6);
                 drawList->AddImage((ImTextureID)(size_t)previewBuffer.getTexture(), position, position + displaySize, {0, 1}, {1, 0});
 		if (exportWidth <= 0)
-			drawHudOverlay(context, drawList, position, displaySize);
+                {
+                        drawHudOverlay(context, drawList, position, displaySize);
+
+                        const float sx = displaySize.x / width;
+                        const float sy = displaySize.y / height;
+                        const float judgeY = position.y + (height * 0.5f + scaledHeight - scrTop) * sy;
+                        for (int lane = 0; lane <= 12; ++lane)
+                        {
+                                const float x = position.x + (width * 0.5f + (lane - 6) * scaledWidth) * sx;
+                                const ImU32 color = (lane % 2) ? IM_COL32(255, 255, 0, 220) : IM_COL32(0, 255, 255, 220);
+                                drawList->AddLine(ImVec2(x, judgeY - 40.0f * sy), ImVec2(x, judgeY + 40.0f * sy), color, 2.0f);
+                        }
+                }
 	}
 
 	void ScorePreviewWindow::updateUI(ScoreEditorTimeline& timeline, ScoreContext& context)
