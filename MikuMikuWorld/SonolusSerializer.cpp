@@ -1,3 +1,7 @@
+#include <unordered_map>
+#include <unordered_set>
+#include <algorithm>
+#include <cmath>
 #include "SonolusSerializer.h"
 #include "Constants.h"
 #include "IO.h"
@@ -364,9 +368,176 @@ namespace MikuMikuWorld
 	}
 
 	Score PySekaiEngine::deserialize(const Sonolus::LevelData& levelData)
-	{
-		throw std::runtime_error("Importing is not supported!");
-	}
+        {
+                using Entity = Sonolus::LevelDataEntity;
+                const auto npos = std::string::npos;
+
+                Score score;
+                score.metadata.musicOffset = fromBgmOffset(levelData.bgmOffset);
+
+                std::vector<Tempo> tempos;
+                std::vector<HiSpeedChange> speeds;
+                std::unordered_map<std::string, const Entity*> byName;
+                std::unordered_set<std::string> referenced;
+
+                auto isNoteArchetype = [](const std::string& a)
+                {
+                        return a.size() > 4 && a.compare(a.size() - 4, 4, "Note") == 0 && a != "TransientHiddenTickNote";
+                };
+
+                for (const auto& e : levelData.entities)
+                {
+                        if (!e.name.empty())
+                                byName[e.name] = &e;
+
+                        if (e.archetype == "#BPM_CHANGE")
+                        {
+                                Tempo t;
+                                if (fromBpmChangeEntity(e, t))
+                                        tempos.push_back(t);
+                        }
+                        else if (e.archetype == "#TIMESCALE_CHANGE")
+                        {
+                                double beat = 0, speed = 1;
+                                if (e.tryGetDataValue("#BEAT", beat) && e.tryGetDataValue("#TIMESCALE", speed))
+                                        speeds.push_back({ beatsToTicks(beat), static_cast<float>(speed) });
+                        }
+                        else if (isNoteArchetype(e.archetype))
+                        {
+                                std::string next;
+                                if (e.tryGetDataValue("next", next))
+                                        referenced.insert(next);
+                        }
+                }
+
+                auto readNote = [&](const Entity& e, NoteType type)
+                {
+                        double lane = 0, size = 1, dir = 0, kind = 0, beat = 0;
+                        e.tryGetDataValue("lane", lane);
+                        e.tryGetDataValue("size", size);
+                        e.tryGetDataValue("direction", dir);
+                        e.tryGetDataValue("segmentKind", kind);
+                        e.tryGetDataValue("#BEAT", beat);
+
+                        int width = std::clamp(static_cast<int>(std::lround(size * 2)), MIN_NOTE_WIDTH, MAX_NOTE_WIDTH);
+                        int nativeLane = std::clamp(static_cast<int>(std::lround(lane - size + 6)), MIN_LANE, MAX_LANE - width + 1);
+
+                        Note note(type, std::max(0, beatsToTicks(beat)), nativeLane, width);
+                        note.ID = nextID++;
+
+                        const std::string& a = e.archetype;
+                        if (a == "AnchorNote")
+                                note.critical = (kind == 2 || kind == 105);
+                        else
+                                note.critical = a.rfind("Critical", 0) == 0;
+                        note.friction = a.find("Trace") != npos;
+                        if (a.find("Flick") != npos)
+                                note.flick = dir == 1 ? FlickType::Left : (dir == 2 ? FlickType::Right : FlickType::Default);
+                        return note;
+                };
+
+                auto easeOf = [](const Entity& e)
+                {
+                        double v = 1;
+                        e.tryGetDataValue("connectorEase", v);
+                        if (v == 2) return EaseType::EaseIn;
+                        if (v == 3) return EaseType::EaseOut;
+                        return EaseType::Linear;
+                };
+
+                auto holdTypeOf = [](const Entity& e)
+                {
+                        if (e.archetype != "AnchorNote")
+                                return HoldNoteType::Normal;
+                        double kind = 0;
+                        e.tryGetDataValue("segmentKind", kind);
+                        return kind >= 100 ? HoldNoteType::Guide : HoldNoteType::Hidden;
+                };
+
+                for (const auto& e : levelData.entities)
+                {
+                        if (!isNoteArchetype(e.archetype) || e.archetype == "AnchorNote")
+                                continue;
+                        if (e.data.count("next") || (!e.name.empty() && referenced.count(e.name)))
+                                continue;
+                        if (e.archetype.find("Head") != npos || e.archetype.find("Tail") != npos || e.archetype.find("Tick") != npos)
+                                continue;
+
+                        Note note = readNote(e, NoteType::Tap);
+                        score.notes.emplace(note.ID, note);
+                }
+
+                for (const auto& e : levelData.entities)
+                {
+                        if (!isNoteArchetype(e.archetype) || !e.data.count("next"))
+                                continue;
+                        if (!e.name.empty() && referenced.count(e.name))
+                                continue;
+
+                        std::vector<const Entity*> chain{ &e };
+                        std::string next;
+                        while (chain.size() <= levelData.entities.size() && chain.back()->tryGetDataValue("next", next))
+                        {
+                                auto it = byName.find(next);
+                                if (it == byName.end())
+                                        break;
+                                chain.push_back(it->second);
+                        }
+                        if (chain.size() < 2)
+                                continue;
+
+                        HoldNote hold;
+                        hold.startType = holdTypeOf(*chain.front());
+                        hold.endType = holdTypeOf(*chain.back());
+
+                        std::vector<Note> holdNotes;
+                        Note start = readNote(*chain.front(), NoteType::Hold);
+                        hold.start = { start.ID, HoldStepType::Normal, easeOf(*chain.front()) };
+                        holdNotes.push_back(start);
+
+                        for (size_t i = 1; i + 1 < chain.size(); ++i)
+                        {
+                                const Entity& me = *chain[i];
+                                Note mid = readNote(me, NoteType::HoldMid);
+                                mid.flick = FlickType::None;
+                                mid.friction = false;
+
+                                double attached = 0;
+                                me.tryGetDataValue("isAttached", attached);
+                                HoldStepType stepType = me.archetype == "AnchorNote" ? HoldStepType::Hidden
+                                        : (attached != 0 ? HoldStepType::Skip : HoldStepType::Normal);
+                                hold.steps.push_back({ mid.ID, stepType, easeOf(me) });
+                                holdNotes.push_back(mid);
+                        }
+
+                        Note end = readNote(*chain.back(), NoteType::HoldEnd);
+                        hold.end = end.ID;
+                        holdNotes.push_back(end);
+
+                        for (auto& n : holdNotes)
+                        {
+                                n.parentID = start.ID;
+                                score.notes.emplace(n.ID, n);
+                        }
+                        score.holdNotes.emplace(start.ID, hold);
+                }
+
+                if (score.notes.empty())
+                        throw std::runtime_error("No notes found in this LevelData file");
+
+                if (!tempos.empty())
+                {
+                        std::stable_sort(tempos.begin(), tempos.end(), [](const Tempo& a, const Tempo& b) { return a.tick < b.tick; });
+                        if (tempos.front().tick != 0)
+                                tempos.insert(tempos.begin(), Tempo(0, tempos.front().bpm));
+                        score.tempoChanges = tempos;
+                }
+
+                std::stable_sort(speeds.begin(), speeds.end(), [](const HiSpeedChange& a, const HiSpeedChange& b) { return a.tick < b.tick; });
+                score.hiSpeedChanges = speeds;
+
+                return score;
+        }
 
 	LevelDataEntity PySekaiEngine::toSpeedChangeEntity(const HiSpeedChange &hispeed, const RefType& groupName)
 	{
