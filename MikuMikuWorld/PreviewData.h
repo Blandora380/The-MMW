@@ -72,9 +72,11 @@ namespace MikuMikuWorld::Engine
                         int width;
                         float weight;
                         bool judged;
+                        int id;
                 };
                 std::vector<PlaytestNote> playtestNotes;
                 bool playtestActive{ false };
+                std::vector<std::pair<int, double>> playtestHits;
                 int playtestCombo{ 0 };
                 float playtestComboFactor{ 1.0f };
                 float playtestScore{ 0.0f };

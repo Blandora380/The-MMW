@@ -157,8 +157,24 @@ namespace MikuMikuWorld::Effect
 	}
 
 	void EffectView::update(const ScoreContext& context)
-	{
-		const float currentTick = context.currentTick;
+        {
+                const auto& playtest = context.scorePreviewDrawData;
+                if (playtest.playtestActive)
+                {
+                        for (const auto& [noteId, hitTime] : playtest.playtestHits)
+                        {
+                                if (isNoteEffectPlayed(noteId))
+                                        continue;
+                                const auto noteIt = context.score.notes.find(noteId);
+                                if (noteIt == context.score.notes.end())
+                                        continue;
+                                addNoteEffects(noteIt->second, context, static_cast<float>(hitTime));
+                                playedEffectsNoteIds.insert(noteId);
+                        }
+                        return;
+                }
+
+                const float currentTick = context.currentTick;
 		const float currentTime = context.getTimeAtCurrentTick();
 
 		for (auto it = context.score.notes.rbegin(); it != context.score.notes.rend(); it++)

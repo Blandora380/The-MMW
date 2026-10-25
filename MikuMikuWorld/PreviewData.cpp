@@ -245,7 +245,7 @@ namespace MikuMikuWorld::Engine
                         const float weight = std::max(0.0f, getTapComboWeight(note));
                         total += weight;
                         const double time = accumulateDuration(note.tick, TICKS_PER_BEAT, score.tempoChanges);
-                        playtestNotes.push_back({ time, note.lane, note.width, weight, time < startTime });
+                        playtestNotes.push_back({ time, note.lane, note.width, weight, time < startTime, note.ID });
                 }
                 std::sort(playtestNotes.begin(), playtestNotes.end(), [](const PlaytestNote& a, const PlaytestNote& b) { return a.time < b.time; });
 
@@ -255,6 +255,7 @@ namespace MikuMikuWorld::Engine
                 playtestScore = 0.0f;
                 playtestPrevScore = 0;
                 playtestLastEventTime = 0.0;
+                playtestHits.clear();
                 playtestActive = true;
         }
 
@@ -285,6 +286,8 @@ namespace MikuMikuWorld::Engine
                 best->judged = true;
                 const int kind = bestDelta <= 0.06 ? 0 : (bestDelta <= 0.09 ? 1 : (bestDelta <= 0.12 ? 2 : 3));
                 pushPlaytestEvent(*this, touchTime, kind, best->weight);
+                if (kind <= 2)
+                        playtestHits.emplace_back(best->id, touchTime);
         }
 
         void DrawData::playtestAdvance(double now)
@@ -320,6 +323,7 @@ namespace MikuMikuWorld::Engine
                 hudJudgeKinds.clear();
                 playtestNotes.clear();
                 playtestActive = false;
+                playtestHits.clear();
 		effectView.reset();
 
 		maxTicks = 1;
