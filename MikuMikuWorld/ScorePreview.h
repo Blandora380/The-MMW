@@ -130,6 +130,7 @@ namespace MikuMikuWorld
                void resetPreviewPixelsPipeline();
 		
 		inline bool isFullWindow() const { return fullWindow; };
+                inline bool isPlaytestOn() const { return playtestOn; }
 
 		void loadNoteEffects(Effect::EffectView& effectView);
 	};

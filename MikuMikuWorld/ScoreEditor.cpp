@@ -267,7 +267,8 @@ namespace MikuMikuWorld
 		mp4ExportWindow.update(context, timeline, preview);
 #ifdef __ANDROID__
                 {
-                        const int multiTap = AndroidImGui_ConsumeMultiTap();
+                        const int multiTapRaw = AndroidImGui_ConsumeMultiTap();
+                        const int multiTap = preview.isPlaytestOn() ? 0 : multiTapRaw;
                         if (multiTap == 2 && context.history.hasUndo() && !UI::isAnyPopupOpen())
                                 context.undo();
                         else if (multiTap == 3 && !UI::isAnyPopupOpen())
