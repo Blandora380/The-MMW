@@ -1196,7 +1196,18 @@ namespace MikuMikuWorld
                                 continue;
                         if (config.pvMirrorScore)
                                 lane = 11 - lane;
+                        const size_t hitsBefore = data.playtestHits.size();
                         data.playtestTouch(lane, now - downs[i].ageSec);
+                        if (data.playtestHits.size() > hitsBefore)
+                        {
+                                const auto noteIt = context.score.notes.find(data.playtestHits.back().first);
+                                if (noteIt != context.score.notes.end())
+                                {
+                                        const std::string_view se = getNoteSE(noteIt->second, context.score);
+                                        if (!se.empty())
+                                                context.audio.playOneShotSound(se);
+                                }
+                        }
                 }
 #else
                 (void)position;
