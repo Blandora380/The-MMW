@@ -1609,7 +1609,8 @@ namespace MikuMikuWorld
 		// textures. Using px() here stretches the spacing on ultrawide previews,
 		// while ps() keeps the artwork uniform, making the bar and rank markers
 		// drift apart at non-16:9 resolutions.
-		auto scoreX = [&](float v) { return position.x + (size.x - Engine::STAGE_TARGET_WIDTH * uiScale) * 0.5f + (36.0f + v * SCORE_ROOT_SCALE) * uiScale; };
+		const float scoreAnchorShift = (size.x - Engine::STAGE_TARGET_WIDTH * uiScale) * 0.5f * 0.5f;
+		auto scoreX = [&](float v) { return position.x + scoreAnchorShift + (36.0f + v * SCORE_ROOT_SCALE) * uiScale; };
 		auto scoreY = [&](float v) { return position.y + (-3.0f + v * SCORE_ROOT_SCALE) * uiScale; };
 		auto scoreS = [&](float v) { return v * SCORE_ROOT_SCALE * uiScale; };
 		auto drawScoreImage = [&](const Texture* texture, float x, float y, float width, float height)
@@ -1695,7 +1696,7 @@ namespace MikuMikuWorld
 					{
 						const float popupSizeScale = std::clamp(config.pvScorePopupSize, 50.0f, 200.0f) / 100.0f * 0.92f;
 						const float slideProgress = clamp01(popupElapsed / 0.12f);
-						const float popupX = (position.x + (size.x - Engine::STAGE_TARGET_WIDTH * uiScale) * 0.5f + ps(450.0f + std::clamp(config.pvScorePopupOffsetX, -400.0f, 400.0f)))
+						const float popupX = (position.x + scoreAnchorShift + ps(450.0f + std::clamp(config.pvScorePopupOffsetX, -400.0f, 400.0f)))
 							- ps(30.0f) * popupSizeScale * (1.0f - slideProgress);
 						const float popupY = position.y + ps(108.0f + std::clamp(config.pvScorePopupOffsetY, -250.0f, 250.0f));
 						const float fadeOut = clamp01((popupDuration - popupElapsed) / 0.18f);
