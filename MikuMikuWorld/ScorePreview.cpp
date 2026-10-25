@@ -1166,11 +1166,20 @@ namespace MikuMikuWorld
 	void ScorePreviewWindow::updatePlaytest(ScoreContext& context, ImVec2 position, float sx, float layoutWidth, float laneWidth)
         {
                 auto& data = context.scorePreviewDrawData;
+                (void)position;
+                (void)sx;
+                (void)layoutWidth;
+                (void)laneWidth;
+#ifdef __ANDROID__
+                AndroidTouchEvent events[64];
+                const int eventCount = AndroidImGui_ConsumeTouchEvents(events, 64);
+#endif
                 if (!playtestOn)
                 {
                         if (data.playtestActive)
                                 data.calculateDrawData(context.score);
                         playtestWasPlaying = false;
+                        playtestPointers.clear();
                         return;
                 }
 
@@ -1178,46 +1187,88 @@ namespace MikuMikuWorld
                 const bool started = playbackState.isPlaying && !playtestWasPlaying;
                 playtestWasPlaying = playbackState.isPlaying;
                 if (started || !data.playtestActive)
+                {
                         data.beginPlaytest(context.score, now);
+                        playtestPointers.clear();
+                }
+                if (!playbackState.isPlaying)
+                {
+                        playtestPointers.clear();
+                        return;
+                }
 
 #ifdef __ANDROID__
-                AndroidTouchDown downs[16];
-                const int count = AndroidImGui_ConsumeTouchDowns(downs, 16);
-                if (!playbackState.isPlaying)
-                        return;
-
-                for (int i = 0; i < count; ++i)
+                auto laneAt = [&](float x)
                 {
-                        if (downs[i].ageSec > 0.5)
-                                continue;
-                        const float laneF = ((downs[i].x - position.x) / sx - layoutWidth * 0.5f) / laneWidth + 6.0f;
-                        int lane = static_cast<int>(std::floor(laneF));
+                        const float laneF = ((x - position.x) / sx - layoutWidth * 0.5f) / laneWidth + 6.0f;
+                        const int lane = static_cast<int>(std::floor(laneF));
                         if (lane < 0 || lane > 11)
-                                continue;
-                        if (config.pvMirrorScore)
-                                lane = 11 - lane;
-                        const size_t hitsBefore = data.playtestHits.size();
-                        data.playtestTouch(lane, now - downs[i].ageSec);
-                        if (data.playtestHits.size() > hitsBefore)
+                                return -1;
+                        return config.pvMirrorScore ? 11 - lane : lane;
+                };
+                auto withSounds = [&](auto&& action)
+                {
+                        const size_t before = data.playtestHits.size();
+                        action();
+                        for (size_t k = before; k < data.playtestHits.size(); ++k)
                         {
-                                const auto noteIt = context.score.notes.find(data.playtestHits.back().first);
-                                if (noteIt != context.score.notes.end())
+                                const auto noteIt = context.score.notes.find(data.playtestHits[k].first);
+                                if (noteIt == context.score.notes.end())
+                                        continue;
+                                const std::string_view se = getNoteSE(noteIt->second, context.score);
+                                if (!se.empty())
+                                        context.audio.playOneShotSound(se);
+                        }
+                };
+                const float flickDistance = laneWidth * sx * 0.7f;
+
+                for (int i = 0; i < eventCount; ++i)
+                {
+                        const AndroidTouchEvent& e = events[i];
+                        const double t = now - e.ageSec;
+                        if (e.type == 0)
+                        {
+                                if (e.ageSec > 0.5)
+                                        continue;
+                                playtestPointers.push_back({ e.id, e.x, e.y, t });
+                                const int lane = laneAt(e.x);
+                                if (lane >= 0)
+                                        withSounds([&] { data.playtestTouch(e.id, lane, t); });
+                        }
+                        else if (e.type == 1)
+                        {
+                                auto it = std::find_if(playtestPointers.begin(), playtestPointers.end(), [&](const PlaytestPointer& p) { return p.id == e.id; });
+                                if (it == playtestPointers.end())
+                                        continue;
+                                if (t - it->at > 0.25)
                                 {
-                                        const std::string_view se = getNoteSE(noteIt->second, context.score);
-                                        if (!se.empty())
-                                                context.audio.playOneShotSound(se);
+                                        it->ax = e.x;
+                                        it->ay = e.y;
+                                        it->at = t;
+                                        continue;
+                                }
+                                const float dx = e.x - it->ax;
+                                const float dy = e.y - it->ay;
+                                if (dx * dx + dy * dy >= flickDistance * flickDistance)
+                                {
+                                        const int lane = laneAt(e.x);
+                                        const int anchorLane = laneAt(it->ax);
+                                        withSounds([&] { data.playtestFlick(lane, anchorLane, t); });
+                                        it->ax = e.x;
+                                        it->ay = e.y;
+                                        it->at = t;
                                 }
                         }
+                        else
+                        {
+                                withSounds([&] { data.playtestRelease(e.id, t); });
+                                playtestPointers.erase(std::remove_if(playtestPointers.begin(), playtestPointers.end(), [&](const PlaytestPointer& p) { return p.id == e.id; }), playtestPointers.end());
+                        }
                 }
+                withSounds([&] { data.playtestAdvance(now); });
 #else
-                (void)position;
-                (void)sx;
-                (void)layoutWidth;
-                (void)laneWidth;
-                if (!playbackState.isPlaying)
-                        return;
-#endif
                 data.playtestAdvance(now);
+#endif
         }
 
         void ScorePreviewWindow::updateUI(ScoreEditorTimeline& timeline, ScoreContext& context)

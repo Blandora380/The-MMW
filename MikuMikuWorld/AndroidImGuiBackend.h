@@ -23,6 +23,8 @@ namespace MikuMikuWorld
         int AndroidImGui_ConsumeMultiTap();
         struct AndroidTouchDown { float x; float y; double ageSec; };
         int AndroidImGui_ConsumeTouchDowns(AndroidTouchDown* out, int maxCount);
+        struct AndroidTouchEvent { int type; int id; float x; float y; double ageSec; };
+        int AndroidImGui_ConsumeTouchEvents(AndroidTouchEvent* out, int maxCount);
 	float AndroidImGui_GetDensity();
 	void AndroidRequestExit();
 	bool AndroidExitRequested();

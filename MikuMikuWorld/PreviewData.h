@@ -74,8 +74,27 @@ namespace MikuMikuWorld::Engine
                         float weight;
                         bool judged;
                         int id;
+                        bool flick{ false };
+                        int holdIndex{ -1 };
                 };
                 std::vector<PlaytestNote> playtestNotes;
+
+                struct PlaytestHold
+                {
+                        double startTime{};
+                        double endTime{};
+                        bool hasEnd{ true };
+                        float endWeight{};
+                        int headId{};
+                        int endId{};
+                        std::vector<std::pair<double, float>> ticks;
+                        size_t nextTick{ 0 };
+                        int pointer{ -1 };
+                        bool active{ false };
+                        bool failed{ false };
+                        bool done{ false };
+                };
+                std::vector<PlaytestHold> playtestHolds;
                 bool playtestActive{ false };
                 std::unordered_map<int, double> playtestHitTime;
                 std::vector<std::pair<int, double>> playtestHits;
@@ -90,7 +109,9 @@ namespace MikuMikuWorld::Engine
 		void clear();
 		void calculateDrawData(Score const& score);
                 void beginPlaytest(Score const& score, double startTime);
-                void playtestTouch(int lane, double touchTime);
+                void playtestTouch(int pointerId, int lane, double touchTime);
+                void playtestFlick(int lane, int anchorLane, double time);
+                void playtestRelease(int pointerId, double time);
                 void playtestAdvance(double now);
                 const char* judgeNameAt(size_t index) const;
 	};

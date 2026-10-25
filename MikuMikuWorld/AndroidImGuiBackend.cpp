@@ -221,6 +221,30 @@ namespace MikuMikuWorld
                 return count;
         }
 
+        struct PendingTouchEvent
+        {
+                int type;
+                int id;
+                float x;
+                float y;
+                std::chrono::steady_clock::time_point time;
+        };
+        static std::vector<PendingTouchEvent> pendingTouchEvents;
+
+        int AndroidImGui_ConsumeTouchEvents(AndroidTouchEvent* out, int maxCount)
+        {
+                const auto now = std::chrono::steady_clock::now();
+                int count = 0;
+                for (const auto& e : pendingTouchEvents)
+                {
+                        if (count >= maxCount)
+                                break;
+                        out[count++] = { e.type, e.id, e.x, e.y, std::chrono::duration<double>(now - e.time).count() };
+                }
+                pendingTouchEvents.erase(pendingTouchEvents.begin(), pendingTouchEvents.begin() + count);
+                return count;
+        }
+
         void AndroidImGui_HandleMotion(AInputEvent* event)
 	{
 		if (AInputEvent_getType(event) != AINPUT_EVENT_TYPE_MOTION)
@@ -230,6 +254,51 @@ namespace MikuMikuWorld
 		const int actionType = action & AMOTION_EVENT_ACTION_MASK;
 		const size_t pointerCount = AMotionEvent_getPointerCount(event);
 		const size_t index = (action & AMOTION_EVENT_ACTION_POINTER_INDEX_MASK) >> AMOTION_EVENT_ACTION_POINTER_INDEX_SHIFT;
+                if (pointerCount > 0)
+                {
+                        const auto nowTime = std::chrono::steady_clock::now();
+                        auto pushTouch = [&](int type, size_t i)
+                        {
+                                if (i >= pointerCount)
+                                        return;
+                                const int id = AMotionEvent_getPointerId(event, i);
+                                const float tx = (AMotionEvent_getX(event, i) - viewportLeft) / density;
+                                const float ty = (AMotionEvent_getY(event, i) - viewportTop) / density;
+                                if (type == 1)
+                                {
+                                        for (auto it = pendingTouchEvents.rbegin(); it != pendingTouchEvents.rend(); ++it)
+                                        {
+                                                if (it->id != id)
+                                                        continue;
+                                                if (it->type == 1)
+                                                {
+                                                        it->x = tx;
+                                                        it->y = ty;
+                                                        it->time = nowTime;
+                                                        return;
+                                                }
+                                                break;
+                                        }
+                                }
+                                if (pendingTouchEvents.size() >= 512)
+                                        pendingTouchEvents.erase(pendingTouchEvents.begin(), pendingTouchEvents.begin() + 256);
+                                pendingTouchEvents.push_back({ type, id, tx, ty, nowTime });
+                        };
+                        if (actionType == AMOTION_EVENT_ACTION_DOWN || actionType == AMOTION_EVENT_ACTION_POINTER_DOWN)
+                                pushTouch(0, index);
+                        else if (actionType == AMOTION_EVENT_ACTION_UP || actionType == AMOTION_EVENT_ACTION_POINTER_UP)
+                                pushTouch(2, index);
+                        else if (actionType == AMOTION_EVENT_ACTION_MOVE)
+                        {
+                                for (size_t i = 0; i < pointerCount; ++i)
+                                        pushTouch(1, i);
+                        }
+                        else if (actionType == AMOTION_EVENT_ACTION_CANCEL)
+                        {
+                                for (size_t i = 0; i < pointerCount; ++i)
+                                        pushTouch(2, i);
+                        }
+                }
 		if (pointerCount == 0 || index >= pointerCount)
 			return;
 

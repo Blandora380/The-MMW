@@ -2953,7 +2953,7 @@ namespace MikuMikuWorld
 				playSE = context.score.holdNotes.at(note.parentID).endType == HoldNoteType::Normal;
 			}
 
-			if (playSE)
+			if (playSE && !context.scorePreviewDrawData.playtestActive)
 			{
 				std::string_view se = getNoteSE(note, context.score);
 				std::string key = std::to_string(note.tick) + "-" + se.data();
@@ -2966,7 +2966,9 @@ namespace MikuMikuWorld
 		};
 
 		static auto holdNoteSEFunc = [&context, this](const Note& note, float startTime)
-		{
+                {
+                        if (context.scorePreviewDrawData.playtestActive)
+                                return;
 			int endTick = context.score.notes.at(context.score.holdNotes.at(note.ID).end).tick;
 			float endTime = accumulateDuration(endTick, TICKS_PER_BEAT, context.score.tempoChanges);
 
