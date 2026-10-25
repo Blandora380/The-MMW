@@ -1580,6 +1580,7 @@ namespace MikuMikuWorld
 		auto py = [&](float y) { return position.y + y * scaleY; };
 		auto topPy = [&](float y) { return py(y); };
 		auto ps = [&](float v) { return v * uiScale; };
+		auto comboPx = [&](float x) { return position.x + (size.x - Engine::STAGE_TARGET_WIDTH * uiScale) * 0.5f + x * uiScale; };
 		auto comboGroupX = [&](float x) {
 			return COMBO_GROUP_CENTER_X + (x - COMBO_GROUP_CENTER_X) * COMBO_GROUP_SCALE;
 		};
@@ -1781,7 +1782,7 @@ namespace MikuMikuWorld
 				drawComboImage(
 					drawList,
 					*comboTagGlow,
-					px(comboGroupX(1634.0f)) - ps(comboGroupS(comboTagGlowWidth * 0.5f)),
+					comboPx(comboGroupX(1634.0f)) - ps(comboGroupS(comboTagGlowWidth * 0.5f)),
 					tagCenterY - ps(comboGroupS(3.0f)) - ps(comboGroupS(comboTagGlowHeight)) * 0.5f,
 					ps(comboGroupS(comboTagGlowWidth)),
 					ps(comboGroupS(comboTagGlowHeight)),
@@ -1790,7 +1791,7 @@ namespace MikuMikuWorld
 				drawComboImage(
 					drawList,
 					*comboTag,
-					px(comboGroupX(1634.0f)) - ps(comboGroupS(comboTagWidth * 0.5f)),
+					comboPx(comboGroupX(1634.0f)) - ps(comboGroupS(comboTagWidth * 0.5f)),
 					tagCenterY - ps(comboGroupS(comboTagHeight)) * 0.5f,
 					ps(comboGroupS(comboTagWidth)),
 					ps(comboGroupS(comboTagHeight)),
@@ -1818,7 +1819,7 @@ namespace MikuMikuWorld
 				auto digitCenter = [&](float layerScale)
 				{
 					const float left = (static_cast<float>(i) - mid + 0.5f) * COMBO_DIGIT_STEP * layerScale;
-					const float centerX = px(comboGroupX(1634.0f)) + ps(comboGroupS(left));
+					const float centerX = comboPx(comboGroupX(1634.0f)) + ps(comboGroupS(left));
 					const float centerY = py(comboGroupY(478.0f)) + ps(comboGroupS(comboCenterYOffset * layerScale));
 					return ImVec2(centerX, centerY);
 				};
