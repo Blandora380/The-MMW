@@ -101,7 +101,12 @@ namespace MikuMikuWorld
 		return comboEvents;
 	}
 
-	std::vector<int> calculateComboTicks(const Score& score)
+	float getTapComboWeight(const Note& note)
+        {
+                return getComboWeight(note);
+        }
+
+        std::vector<int> calculateComboTicks(const Score& score)
 	{
 		const std::vector<ComboEvent> comboEvents = calculateComboEvents(score);
 		std::vector<int> comboTicks;

@@ -180,7 +180,131 @@ namespace MikuMikuWorld::Engine
 		}
 	}
 
-	void DrawData::clear()
+	static void pushPlaytestEvent(DrawData& d, double time, int kind, float weight)
+        {
+                constexpr float multipliers[] = { 1.0f, 0.9f, 0.8f, 0.7f, 0.0f };
+                kind = std::clamp(kind, 0, 4);
+                const float levelFactor = (SCORE_RATING - 5.0f) * 0.005f + 1.0f;
+
+                if (kind >= 3)
+                {
+                        d.playtestCombo = 0;
+                        d.playtestComboFactor = 1.0f;
+                }
+                else
+                {
+                        d.playtestCombo++;
+                        if (d.playtestCombo % 100 == 1 && d.playtestCombo > 1)
+                                d.playtestComboFactor = std::min(d.playtestComboFactor + 0.01f, 1.1f);
+                }
+
+                d.playtestScore += (SCORE_TEAM_POWER / d.playtestWeightedCount) * 4.0f * weight * multipliers[kind] * levelFactor * d.playtestComboFactor;
+                const int currentScore = std::max(0, static_cast<int>(std::lround(d.playtestScore)));
+                const auto [rank, scoreBar] = scoreRankAndBar(d.playtestScore);
+
+                time = std::max(time, d.playtestLastEventTime);
+                d.playtestLastEventTime = time;
+
+                d.comboTimes.push_back(static_cast<float>(time));
+                d.hudScores.push_back(currentScore);
+                d.hudScoreGains.push_back(currentScore - d.playtestPrevScore);
+                d.playtestPrevScore = currentScore;
+                d.hudRanks.push_back(rank);
+                d.hudScoreBars.push_back(scoreBar);
+                d.hudComboValues.push_back(d.playtestCombo);
+                d.hudJudgeTimes.push_back(static_cast<float>(time));
+                d.hudJudgeKinds.push_back(kind);
+        }
+
+        const char* DrawData::judgeNameAt(size_t index) const
+        {
+                static constexpr const char* names[] = { "perfect", "great", "good", "bad", "miss" };
+                if (index < hudJudgeKinds.size() && hudJudgeKinds[index] >= 0 && hudJudgeKinds[index] < 5)
+                        return names[hudJudgeKinds[index]];
+                return names[0];
+        }
+
+        void DrawData::beginPlaytest(Score const& score, double startTime)
+        {
+                comboTimes.clear();
+                hudScores.clear();
+                hudScoreGains.clear();
+                hudRanks.clear();
+                hudScoreBars.clear();
+                hudJudgeTimes.clear();
+                hudComboValues.clear();
+                hudJudgeKinds.clear();
+                playtestNotes.clear();
+
+                float total = 0.0f;
+                for (const auto& [id, note] : score.notes)
+                {
+                        (void)id;
+                        if (note.getType() != NoteType::Tap)
+                                continue;
+                        const float weight = std::max(0.0f, getTapComboWeight(note));
+                        total += weight;
+                        const double time = accumulateDuration(note.tick, TICKS_PER_BEAT, score.tempoChanges);
+                        playtestNotes.push_back({ time, note.lane, note.width, weight, time < startTime });
+                }
+                std::sort(playtestNotes.begin(), playtestNotes.end(), [](const PlaytestNote& a, const PlaytestNote& b) { return a.time < b.time; });
+
+                playtestWeightedCount = std::max(total, 1.0f);
+                playtestCombo = 0;
+                playtestComboFactor = 1.0f;
+                playtestScore = 0.0f;
+                playtestPrevScore = 0;
+                playtestLastEventTime = 0.0;
+                playtestActive = true;
+        }
+
+        void DrawData::playtestTouch(int lane, double touchTime)
+        {
+                if (!playtestActive)
+                        return;
+
+                constexpr double window = 0.15;
+                PlaytestNote* best = nullptr;
+                double bestDelta = window + 1.0;
+                for (auto& n : playtestNotes)
+                {
+                        if (n.time > touchTime + window)
+                                break;
+                        if (n.judged || lane < n.lane || lane >= n.lane + n.width)
+                                continue;
+                        const double delta = std::abs(n.time - touchTime);
+                        if (delta <= window && delta < bestDelta)
+                        {
+                                best = &n;
+                                bestDelta = delta;
+                        }
+                }
+                if (!best)
+                        return;
+
+                best->judged = true;
+                const int kind = bestDelta <= 0.06 ? 0 : (bestDelta <= 0.09 ? 1 : (bestDelta <= 0.12 ? 2 : 3));
+                pushPlaytestEvent(*this, touchTime, kind, best->weight);
+        }
+
+        void DrawData::playtestAdvance(double now)
+        {
+                if (!playtestActive)
+                        return;
+
+                constexpr double window = 0.15;
+                for (auto& n : playtestNotes)
+                {
+                        if (n.time > now - window)
+                                break;
+                        if (n.judged)
+                                continue;
+                        n.judged = true;
+                        pushPlaytestEvent(*this, n.time + window, 4, n.weight);
+                }
+        }
+
+        void DrawData::clear()
 	{
 		drawingLines.clear();
 		drawingNotes.clear();
@@ -192,6 +316,10 @@ namespace MikuMikuWorld::Engine
 		hudRanks.clear();
 		hudScoreBars.clear();
 		hudJudgeTimes.clear();
+                hudComboValues.clear();
+                hudJudgeKinds.clear();
+                playtestNotes.clear();
+                playtestActive = false;
 		effectView.reset();
 
 		maxTicks = 1;

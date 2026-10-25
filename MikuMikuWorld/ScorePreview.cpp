@@ -1158,48 +1158,58 @@ namespace MikuMikuWorld
                 drawList->AddImage((ImTextureID)(size_t)previewBuffer.getTexture(), position, position + displaySize, {0, 1}, {1, 0});
 		if (exportWidth <= 0)
                 {
+                        updatePlaytest(context, position, displaySize.x / width, width, scaledWidth);
                         drawHudOverlay(context, drawList, position, displaySize);
-
-                        const float sx = displaySize.x / width;
-                        const float sy = displaySize.y / height;
-                        const float judgeY = position.y + (height * 0.5f + scaledHeight - scrTop) * sy;
-                        for (int lane = 0; lane <= 12; ++lane)
-                        {
-                                const float x = position.x + (width * 0.5f + (lane - 6) * scaledWidth) * sx;
-                                const ImU32 color = (lane % 2) ? IM_COL32(255, 255, 0, 220) : IM_COL32(0, 255, 255, 220);
-                                drawList->AddLine(ImVec2(x, judgeY - 40.0f * sy), ImVec2(x, judgeY + 40.0f * sy), color, 2.0f);
-                        }
-#ifdef __ANDROID__
-                        {
-                                static std::vector<std::pair<ImVec2, float>> touchMarks;
-                                AndroidTouchDown downs[16];
-                                const int downCount = AndroidImGui_ConsumeTouchDowns(downs, 16);
-                                for (int i = 0; i < downCount; ++i)
-                                        if (downs[i].ageSec < 0.3)
-                                                touchMarks.push_back({ ImVec2(downs[i].x, downs[i].y), 0.6f });
-
-                                const float dt = ImGui::GetIO().DeltaTime;
-                                for (auto& mark : touchMarks)
-                                {
-                                        const float laneF = ((mark.first.x - position.x) / sx - width * 0.5f) / scaledWidth + 6.0f;
-                                        const int lane = static_cast<int>(std::floor(laneF));
-                                        const bool inLane = lane >= 0 && lane < 12;
-                                        drawList->AddCircleFilled(mark.first, 30.0f, inLane ? IM_COL32(255, 80, 160, 230) : IM_COL32(160, 160, 160, 200));
-                                        if (inLane)
-                                        {
-                                                char label[8];
-                                                std::snprintf(label, sizeof(label), "%d", lane + 1);
-                                                drawList->AddText(ImVec2(mark.first.x - 6.0f, mark.first.y - 40.0f), IM_COL32(255, 255, 255, 255), label);
-                                        }
-                                        mark.second -= dt;
-                                }
-                                touchMarks.erase(std::remove_if(touchMarks.begin(), touchMarks.end(), [](const auto& m) { return m.second <= 0.0f; }), touchMarks.end());
-                        }
-#endif
                 }
 	}
 
-	void ScorePreviewWindow::updateUI(ScoreEditorTimeline& timeline, ScoreContext& context)
+	void ScorePreviewWindow::updatePlaytest(ScoreContext& context, ImVec2 position, float sx, float layoutWidth, float laneWidth)
+        {
+                auto& data = context.scorePreviewDrawData;
+                if (!playtestOn)
+                {
+                        if (data.playtestActive)
+                                data.calculateDrawData(context.score);
+                        playtestWasPlaying = false;
+                        return;
+                }
+
+                const double now = context.getTimeAtCurrentTick();
+                const bool started = playbackState.isPlaying && !playtestWasPlaying;
+                playtestWasPlaying = playbackState.isPlaying;
+                if (started || !data.playtestActive)
+                        data.beginPlaytest(context.score, now);
+
+#ifdef __ANDROID__
+                AndroidTouchDown downs[16];
+                const int count = AndroidImGui_ConsumeTouchDowns(downs, 16);
+                if (!playbackState.isPlaying)
+                        return;
+
+                for (int i = 0; i < count; ++i)
+                {
+                        if (downs[i].ageSec > 0.5)
+                                continue;
+                        const float laneF = ((downs[i].x - position.x) / sx - layoutWidth * 0.5f) / laneWidth + 6.0f;
+                        int lane = static_cast<int>(std::floor(laneF));
+                        if (lane < 0 || lane > 11)
+                                continue;
+                        if (config.pvMirrorScore)
+                                lane = 11 - lane;
+                        data.playtestTouch(lane, now - downs[i].ageSec);
+                }
+#else
+                (void)position;
+                (void)sx;
+                (void)layoutWidth;
+                (void)laneWidth;
+                if (!playbackState.isPlaying)
+                        return;
+#endif
+                data.playtestAdvance(now);
+        }
+
+        void ScorePreviewWindow::updateUI(ScoreEditorTimeline& timeline, ScoreContext& context)
 	{
 		updateHudControls(timeline, context);
 		updateToolbar(timeline, context);
@@ -1230,6 +1240,7 @@ namespace MikuMikuWorld
 				ImGui::MenuItem(getString("preview_draw_combo"), NULL, &config.pvDrawCombo);
 				ImGui::MenuItem(getString("preview_draw_perfect"), NULL, &config.pvDrawPerfect);
 				ImGui::MenuItem(getString("return_to_last_tick"), NULL, &config.returnToLastSelectedTickOnPause);
+                                ImGui::MenuItem("Playtest", NULL, &playtestOn);
 				ImGui::EndPopup();
 			}
 		}
@@ -1608,7 +1619,8 @@ namespace MikuMikuWorld
 			latestComboIndex = static_cast<int>(std::distance(comboTimes.begin(), comboIt)) - 1;
 		}
 
-		const int combo = latestComboIndex + 1;
+		const int combo = latestComboIndex >= 0 && latestComboIndex < static_cast<int>(drawData.hudComboValues.size())
+                    ? drawData.hudComboValues[latestComboIndex] : latestComboIndex + 1;
 		const int hudScore = latestComboIndex >= 0 && latestComboIndex < static_cast<int>(drawData.hudScores.size()) ? drawData.hudScores[latestComboIndex] : 0;
 		const char hudRank = latestComboIndex >= 0 && latestComboIndex < static_cast<int>(drawData.hudRanks.size()) ? drawData.hudRanks[latestComboIndex] : 'd';
 		const float hudScoreBar = latestComboIndex >= 0 && latestComboIndex < static_cast<int>(drawData.hudScoreBars.size()) ? drawData.hudScoreBars[latestComboIndex] : 0.0f;
@@ -1923,7 +1935,7 @@ namespace MikuMikuWorld
 					const float judgeWidth = 310.0f * scale;
 					const float judgeHeight = 81.0f * scale;
 					drawImage(
-						getHudTexture("judge/perfect.png"),
+						getHudTexture(std::string("judge/") + drawData.judgeNameAt(latestJudgeIndex) + ".png"),
 						960.0f - judgeWidth * 0.5f,
 						667.5f - judgeHeight * 0.5f,
 						judgeWidth,

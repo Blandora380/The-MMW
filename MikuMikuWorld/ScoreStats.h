@@ -4,6 +4,7 @@
 namespace MikuMikuWorld
 {
 	struct Score;
+        class Note;
 
 	struct ComboEvent
 	{
@@ -14,6 +15,7 @@ namespace MikuMikuWorld
 
 	std::vector<ComboEvent> calculateComboEvents(const Score& score);
 	std::vector<int> calculateComboTicks(const Score& score);
+        float getTapComboWeight(const Note& note);
 
 	class ScoreStats
 	{

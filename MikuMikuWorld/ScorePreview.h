@@ -91,6 +91,9 @@ namespace MikuMikuWorld
 
 		void drawStageCoverMask(Renderer* renderer);
 		void drawHudOverlay(const ScoreContext& context, ImDrawList* drawList, ImVec2 position, ImVec2 size);
+                bool playtestOn{ false };
+                bool playtestWasPlaying{ false };
+                void updatePlaytest(ScoreContext& context, ImVec2 position, float sx, float layoutWidth, float laneWidth);
 		void drawSekaiIntroBackdrop(ImDrawList* drawList, ImVec2 size, float opacity, bool tinted = true);
 
 		void updateHudControls(ScoreEditorTimeline& timeline, ScoreContext& context) const;

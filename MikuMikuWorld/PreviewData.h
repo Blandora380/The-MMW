@@ -62,9 +62,32 @@ namespace MikuMikuWorld::Engine
 		std::vector<char> hudRanks;
 		std::vector<float> hudScoreBars;
 		std::vector<float> hudJudgeTimes;
+                std::vector<int> hudComboValues;
+                std::vector<int> hudJudgeKinds;
+
+                struct PlaytestNote
+                {
+                        double time;
+                        int lane;
+                        int width;
+                        float weight;
+                        bool judged;
+                };
+                std::vector<PlaytestNote> playtestNotes;
+                bool playtestActive{ false };
+                int playtestCombo{ 0 };
+                float playtestComboFactor{ 1.0f };
+                float playtestScore{ 0.0f };
+                int playtestPrevScore{ 0 };
+                float playtestWeightedCount{ 1.0f };
+                double playtestLastEventTime{ 0.0 };
 		Effect::EffectView effectView;
 
 		void clear();
 		void calculateDrawData(Score const& score);
+                void beginPlaytest(Score const& score, double startTime);
+                void playtestTouch(int lane, double touchTime);
+                void playtestAdvance(double now);
+                const char* judgeNameAt(size_t index) const;
 	};
 }
