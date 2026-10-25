@@ -239,8 +239,7 @@ namespace MikuMikuWorld
                                 ImGui::OpenPopup("###recover_autosave");
 
                         ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-                        ImGui::SetNextWindowSizeConstraints({ 450, 200 }, { FLT_MAX, FLT_MAX });
-                        ImGui::SetNextWindowSize(ImGui::GetMainViewport()->WorkSize / 3.0f, ImGuiCond_Always);
+                        ImGui::SetNextWindowSize(ImVec2(ImGui::GetFontSize() * 26.0f, 0.0f), ImGuiCond_Always);
                         ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
                         if (ImGui::BeginPopupModal("Restore autosave###recover_autosave", NULL, ImGuiWindowFlags_NoResize))
                         {
