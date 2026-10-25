@@ -1,3 +1,6 @@
+#include <fstream>
+#include <filesystem>
+#include <system_error>
 #ifdef __ANDROID__
 #include "AndroidImGuiBackend.h"
 #endif
@@ -54,6 +57,34 @@ namespace MikuMikuWorld
 		timeline.setZoom(config.zoom);
 
 		autoSavePath = Application::getUserDataDir() + "auto_save";
+
+                {
+                        std::error_code ec;
+                        const std::string marker = autoSavePath + "/dirty_session";
+                        if (std::filesystem::exists(marker, ec))
+                        {
+                                std::filesystem::path newest;
+                                std::filesystem::file_time_type newestTime;
+                                for (const auto& f : std::filesystem::directory_iterator(autoSavePath, ec))
+                                {
+                                        if (f.path().extension() != MMWS_EXTENSION)
+                                                continue;
+                                        const auto t = f.last_write_time();
+                                        if (newest.empty() || t > newestTime)
+                                        {
+                                                newest = f.path();
+                                                newestTime = t;
+                                        }
+                                }
+                                if (newest.empty())
+                                        std::filesystem::remove(marker, ec);
+                                else
+                                {
+                                        recoverFile = newest.string();
+                                        recoverPending = true;
+                                }
+                        }
+                }
 		autoSaveTimer.reset();
 
 		preview.loadNoteEffects(context.scorePreviewDrawData.effectView);
@@ -71,6 +102,10 @@ namespace MikuMikuWorld
 
 	void ScoreEditor::uninitialize()
 	{
+                {
+                        std::error_code ec;
+                        std::filesystem::remove(autoSavePath + "/dirty_session", ec);
+                }
 		context.audio.uninitializeAudioEngine();
 		timeline.background.dispose();
 	}
@@ -181,7 +216,7 @@ namespace MikuMikuWorld
 
 		if (config.autoSaveEnabled && autoSaveTimer.elapsedMinutes() >= config.autoSaveInterval)
 		{
-			autoSave();
+			autoSaveIfModified();
 			autoSaveTimer.reset();
 		}
 
@@ -191,7 +226,43 @@ namespace MikuMikuWorld
 				config.recentFiles.erase(config.recentFiles.begin() + recentFileNotFoundDialog.removeIndex);
 		}
 
-		settingsWindow.update();
+		if (dirtyMarker && context.upToDate)
+                {
+                        std::error_code ec;
+                        std::filesystem::remove(autoSavePath + "/dirty_session", ec);
+                        dirtyMarker = false;
+                }
+
+                if (recoverPending)
+                {
+                        if (!ImGui::IsPopupOpen("###recover_autosave"))
+                                ImGui::OpenPopup("###recover_autosave");
+
+                        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+                        ImGui::SetNextWindowSizeConstraints({ 450, 200 }, { FLT_MAX, FLT_MAX });
+                        ImGui::SetNextWindowSize(ImGui::GetMainViewport()->WorkSize / 3.0f, ImGuiCond_Always);
+                        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+                        if (ImGui::BeginPopupModal("Restore autosave###recover_autosave", NULL, ImGuiWindowFlags_NoResize))
+                        {
+                                ImGui::TextWrapped("The app closed with unsaved changes. Restore the latest autosave?");
+                                const float btnWidth = ImGui::GetContentRegionAvail().x / 2 - ImGui::GetStyle().ItemSpacing.x;
+                                const bool restore = ImGui::Button("Restore", { btnWidth, ImGui::GetFrameHeight() });
+                                ImGui::SameLine();
+                                const bool discard = ImGui::Button("Discard", { btnWidth, ImGui::GetFrameHeight() });
+                                if (restore || discard)
+                                {
+                                        std::error_code ec;
+                                        std::filesystem::remove(autoSavePath + "/dirty_session", ec);
+                                        recoverPending = false;
+                                        ImGui::CloseCurrentPopup();
+                                        if (restore)
+                                                loadScore(recoverFile);
+                                }
+                                ImGui::EndPopup();
+                        }
+                }
+
+                settingsWindow.update();
 		aboutDialog.update();
 		mp4ExportWindow.update(context, timeline, preview);
 #ifdef __ANDROID__
@@ -792,7 +863,21 @@ namespace MikuMikuWorld
 #endif
 	}
 
-	void ScoreEditor::autoSave()
+	void ScoreEditor::autoSaveIfModified()
+        {
+                if (!config.autoSaveEnabled || context.upToDate || context.score.notes.empty())
+                        return;
+
+                autoSave();
+                autoSaveTimer.reset();
+                if (!dirtyMarker)
+                {
+                        std::ofstream(autoSavePath + "/dirty_session") << 1;
+                        dirtyMarker = true;
+                }
+        }
+
+        void ScoreEditor::autoSave()
 	{
 #ifdef _WIN32
 		std::wstring wAutoSaveDir = IO::mbToWideStr(autoSavePath);

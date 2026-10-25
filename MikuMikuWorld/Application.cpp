@@ -194,6 +194,12 @@ namespace MikuMikuWorld
 		UI::accentColors[0] = config.userColor.toImVec4();
 	}
 
+	void Application::autoSaveNow()
+	{
+		if (editor)
+			editor->autoSaveIfModified();
+	}
+
 	void Application::writeSettings()
 	{
 		config.maximized = windowState.maximized;

@@ -88,6 +88,7 @@ namespace MikuMikuWorld
 		void handlePendingOpenFiles();
 		void readSettings();
 		void writeSettings();
+        void autoSaveNow();
 		void loadResources();
 		void dispose();
 		void setFullScreen(bool fullScreen);

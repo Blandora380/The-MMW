@@ -29,6 +29,9 @@ namespace MikuMikuWorld
 		Effect::DebugEffectView debugEffectView{};
 
 		Stopwatch autoSaveTimer;
+                bool dirtyMarker{false};
+                bool recoverPending{false};
+                std::string recoverFile;
 		std::string autoSavePath;
 		bool showImGuiDemoWindow{false};
 
@@ -52,6 +55,7 @@ namespace MikuMikuWorld
 		bool saveAs();
 		bool trySave(std::string);
 		void autoSave();
+                void autoSaveIfModified();
 		int deleteOldAutoSave(int count);
 		size_t updateRecentFilesList(const std::string& entry);
 

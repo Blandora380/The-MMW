@@ -214,7 +214,10 @@ namespace
 			break;
 		case APP_CMD_PAUSE:
 			if (state->initialized)
-				state->application.writeSettings();
+				{
+                                state->application.writeSettings();
+                                state->application.autoSaveNow();
+                        }
 			break;
 		case APP_CMD_GAINED_FOCUS:
 			state->hasFocus = true;
