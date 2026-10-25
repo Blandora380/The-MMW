@@ -75,6 +75,7 @@ namespace MikuMikuWorld::Engine
                         bool judged;
                         int id;
                         bool flick{ false };
+                        bool trace{ false };
                         int holdIndex{ -1 };
                 };
                 std::vector<PlaytestNote> playtestNotes;
@@ -112,6 +113,7 @@ namespace MikuMikuWorld::Engine
                 void playtestTouch(int pointerId, int lane, double touchTime);
                 void playtestFlick(int lane, int anchorLane, double time);
                 void playtestRelease(int pointerId, double time);
+                void playtestTrace(unsigned int heldMask, const double* laneMoveAt, double now);
                 void playtestAdvance(double now);
                 const char* judgeNameAt(size_t index) const;
 	};

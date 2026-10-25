@@ -1190,6 +1190,7 @@ namespace MikuMikuWorld
                 {
                         data.beginPlaytest(context.score, now);
                         playtestPointers.clear();
+                        std::fill(std::begin(playtestLaneMoveAt), std::end(playtestLaneMoveAt), -1.0);
                 }
                 if (!playbackState.isPlaying)
                 {
@@ -1221,6 +1222,8 @@ namespace MikuMikuWorld
                         }
                 };
                 const float flickDistance = laneWidth * sx * 0.7f;
+                const float moveThreshold = laneWidth * sx * 0.08f;
+                unsigned int touchMask = 0;
 
                 for (int i = 0; i < eventCount; ++i)
                 {
@@ -1230,17 +1233,37 @@ namespace MikuMikuWorld
                         {
                                 if (e.ageSec > 0.5)
                                         continue;
-                                playtestPointers.push_back({ e.id, e.x, e.y, t });
+                                playtestPointers.push_back({ e.id, e.x, e.y, t, e.x, e.y, 0.0 });
                                 const int lane = laneAt(e.x);
                                 if (lane >= 0)
+                                {
+                                        touchMask |= 1u << lane;
                                         withSounds([&] { data.playtestTouch(e.id, lane, t); });
+                                }
                         }
                         else if (e.type == 1)
                         {
                                 auto it = std::find_if(playtestPointers.begin(), playtestPointers.end(), [&](const PlaytestPointer& p) { return p.id == e.id; });
                                 if (it == playtestPointers.end())
                                         continue;
-                                if (t - it->at > 0.25)
+
+                                const int curLane = laneAt(e.x);
+                                if (curLane >= 0)
+                                        touchMask |= 1u << curLane;
+                                const float mdx = e.x - it->px;
+                                const float mdy = e.y - it->py;
+                                if (mdx * mdx + mdy * mdy >= moveThreshold * moveThreshold)
+                                {
+                                        const int prevLane = laneAt(it->px);
+                                        if (curLane >= 0)
+                                                playtestLaneMoveAt[curLane] = t;
+                                        if (prevLane >= 0)
+                                                playtestLaneMoveAt[prevLane] = t;
+                                }
+                                it->px = e.x;
+                                it->py = e.y;
+
+                                if (t < it->lockUntil || t - it->at > 0.25)
                                 {
                                         it->ax = e.x;
                                         it->ay = e.y;
@@ -1251,12 +1274,12 @@ namespace MikuMikuWorld
                                 const float dy = e.y - it->ay;
                                 if (dx * dx + dy * dy >= flickDistance * flickDistance)
                                 {
-                                        const int lane = laneAt(e.x);
                                         const int anchorLane = laneAt(it->ax);
-                                        withSounds([&] { data.playtestFlick(lane, anchorLane, t); });
+                                        withSounds([&] { data.playtestFlick(curLane, anchorLane, t); });
                                         it->ax = e.x;
                                         it->ay = e.y;
                                         it->at = t;
+                                        it->lockUntil = t + 0.15;
                                 }
                         }
                         else
@@ -1265,7 +1288,19 @@ namespace MikuMikuWorld
                                 playtestPointers.erase(std::remove_if(playtestPointers.begin(), playtestPointers.end(), [&](const PlaytestPointer& p) { return p.id == e.id; }), playtestPointers.end());
                         }
                 }
-                withSounds([&] { data.playtestAdvance(now); });
+
+                for (const auto& p : playtestPointers)
+                {
+                        const int lane = laneAt(p.px);
+                        if (lane >= 0)
+                                touchMask |= 1u << lane;
+                }
+
+                withSounds([&]
+                {
+                        data.playtestTrace(touchMask, playtestLaneMoveAt, now);
+                        data.playtestAdvance(now);
+                });
 #else
                 data.playtestAdvance(now);
 #endif

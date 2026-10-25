@@ -261,6 +261,7 @@ namespace MikuMikuWorld::Engine
                         n.judged = time < startTime;
                         n.id = note.ID;
                         n.flick = note.isFlick();
+                        n.trace = note.friction;
                         playtestNotes.push_back(n);
                 }
 
@@ -356,7 +357,7 @@ namespace MikuMikuWorld::Engine
                 {
                         if (n.time > touchTime + window)
                                 break;
-                        if (n.judged || n.flick || lane < n.lane || lane >= n.lane + n.width)
+                        if (n.judged || n.flick || n.trace || lane < n.lane || lane >= n.lane + n.width)
                                 continue;
                         const double delta = std::abs(n.time - touchTime);
                         if (delta <= window && delta < bestDelta)
@@ -395,7 +396,7 @@ namespace MikuMikuWorld::Engine
                 {
                         if (n.time > time + window)
                                 break;
-                        if (n.judged || !n.flick)
+                        if (n.judged || !n.flick || n.trace)
                                 continue;
                         const bool inLane = (lane >= n.lane && lane < n.lane + n.width) || (anchorLane >= n.lane && anchorLane < n.lane + n.width);
                         if (!inLane)
@@ -416,6 +417,45 @@ namespace MikuMikuWorld::Engine
                 pushPlaytestEvent(*this, time, kind, best->weight);
                 if (kind <= 2)
                         playtestHits.emplace_back(best->id, time);
+        }
+
+        void DrawData::playtestTrace(unsigned int heldMask, const double* laneMoveAt, double now)
+        {
+                if (!playtestActive)
+                        return;
+
+                constexpr double traceWindow = 0.1;
+                for (auto& n : playtestNotes)
+                {
+                        if (n.time > now)
+                                break;
+                        if (n.judged || !n.trace || now > n.time + traceWindow)
+                                continue;
+
+                        const unsigned int laneMask = ((1u << n.width) - 1u) << n.lane;
+                        if ((heldMask & laneMask) == 0)
+                                continue;
+
+                        if (n.flick)
+                        {
+                                bool moved = false;
+                                for (int l = n.lane; l < n.lane + n.width && l < 12; ++l)
+                                {
+                                        if (laneMoveAt[l] >= n.time - 0.25)
+                                        {
+                                                moved = true;
+                                                break;
+                                        }
+                                }
+                                if (!moved)
+                                        continue;
+                        }
+
+                        n.judged = true;
+                        playtestHitTime[n.id] = n.time;
+                        pushPlaytestEvent(*this, n.time, 0, n.weight);
+                        playtestHits.emplace_back(n.id, n.time);
+                }
         }
 
         void DrawData::playtestRelease(int pointerId, double time)
@@ -466,14 +506,18 @@ namespace MikuMikuWorld::Engine
                         return;
 
                 constexpr double window = 0.2;
+                constexpr double traceWindow = 0.1;
                 for (auto& n : playtestNotes)
                 {
-                        if (n.time > now - window)
+                        if (n.time > now - traceWindow)
                                 break;
                         if (n.judged)
                                 continue;
+                        const double w = n.trace ? traceWindow : window;
+                        if (n.time > now - w)
+                                continue;
                         n.judged = true;
-                        pushPlaytestEvent(*this, n.time + window, 4, n.weight);
+                        pushPlaytestEvent(*this, n.time + w, 4, n.weight);
                         if (n.holdIndex >= 0)
                                 playtestHolds[n.holdIndex].failed = true;
                 }
