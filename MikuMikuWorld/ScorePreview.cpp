@@ -1278,11 +1278,13 @@ namespace MikuMikuWorld
                                 if (dx * dx + dy * dy >= flickDistance * flickDistance)
                                 {
                                         const int anchorLane = laneAt(it->ax);
-                                        withSounds([&] { data.playtestFlick(curLane, anchorLane, t); });
+                                        bool hit = false;
+                                        withSounds([&] { hit = data.playtestFlick(curLane, anchorLane, t, dx, dy); });
                                         it->ax = e.x;
                                         it->ay = e.y;
                                         it->at = t;
-                                        it->lockUntil = t + 0.15;
+                                        if (hit)
+                                                it->lockUntil = t + 0.15;
                                 }
                         }
                         else
@@ -1299,11 +1301,32 @@ namespace MikuMikuWorld
                                 touchMask |= 1u << lane;
                 }
 
-                withSounds([&]
+                withSounds([&] { data.playtestTrace(touchMask, playtestLaneMoveAt, now); });
+
+                for (auto& h : data.playtestHolds)
                 {
-                        data.playtestTrace(touchMask, playtestLaneMoveAt, now);
-                        data.playtestAdvance(now);
-                });
+                        if (!h.active || h.pointer != -2)
+                                continue;
+                        int found = -1;
+                        for (const auto& p : playtestPointers)
+                        {
+                                const int lane = laneAt(p.px);
+                                if (lane >= h.lane && lane < h.lane + h.width)
+                                {
+                                        found = p.id;
+                                        break;
+                                }
+                        }
+                        if (found >= 0)
+                                h.pointer = found;
+                        else
+                        {
+                                h.active = false;
+                                h.failed = true;
+                        }
+                }
+
+                withSounds([&] { data.playtestAdvance(now); });
 #else
                 data.playtestAdvance(now);
 #endif

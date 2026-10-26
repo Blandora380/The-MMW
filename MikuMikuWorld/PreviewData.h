@@ -77,6 +77,9 @@ namespace MikuMikuWorld::Engine
                         int id;
                         bool flick{ false };
                         bool trace{ false };
+                        bool pending{ false };
+                        int pendingKind{ 0 };
+                        int flickDir{ 0 };
                         int holdIndex{ -1 };
                 };
                 std::vector<PlaytestNote> playtestNotes;
@@ -89,6 +92,8 @@ namespace MikuMikuWorld::Engine
                         float endWeight{};
                         int headId{};
                         int endId{};
+                        int lane{};
+                        int width{};
                         std::vector<std::pair<double, float>> ticks;
                         size_t nextTick{ 0 };
                         int pointer{ -1 };
@@ -97,6 +102,7 @@ namespace MikuMikuWorld::Engine
                         bool done{ false };
                 };
                 std::vector<PlaytestHold> playtestHolds;
+                std::vector<size_t> playtestPending;
                 bool playtestActive{ false };
                 float playtestLife{ 1000.0f };
                 std::unordered_map<int, double> playtestHitTime;
@@ -113,7 +119,7 @@ namespace MikuMikuWorld::Engine
 		void calculateDrawData(Score const& score);
                 void beginPlaytest(Score const& score, double startTime);
                 void playtestTouch(int pointerId, int lane, double touchTime);
-                void playtestFlick(int lane, int anchorLane, double time);
+                bool playtestFlick(int lane, int anchorLane, double time, float dx, float dy);
                 void playtestRelease(int pointerId, double time);
                 void playtestTrace(unsigned int heldMask, const double* laneMoveAt, double now);
                 void playtestAdvance(double now);

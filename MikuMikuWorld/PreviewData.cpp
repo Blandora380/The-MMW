@@ -248,6 +248,7 @@ namespace MikuMikuWorld::Engine
                 playtestNotes.clear();
                 playtestHolds.clear();
                 playtestHits.clear();
+                playtestPending.clear();
                 playtestHitTime.clear();
 
                 float total = 0.0f;
@@ -268,6 +269,8 @@ namespace MikuMikuWorld::Engine
                         n.id = note.ID;
                         n.flick = note.isFlick();
                         n.trace = note.friction;
+                        n.flickDir = note.flick == FlickType::Left ? (config.pvMirrorScore ? 2 : 1)
+                                : (note.flick == FlickType::Right ? (config.pvMirrorScore ? 1 : 2) : 0);
                         playtestNotes.push_back(n);
                 }
 
@@ -285,6 +288,8 @@ namespace MikuMikuWorld::Engine
 
                         PlaytestHold h;
                         h.headId = head.ID;
+                        h.lane = head.lane;
+                        h.width = head.width;
                         h.endId = tail.ID;
                         h.startTime = accumulateDuration(head.tick, TICKS_PER_BEAT, score.tempoChanges);
                         h.endTime = accumulateDuration(tail.tick, TICKS_PER_BEAT, score.tempoChanges);
@@ -335,6 +340,7 @@ namespace MikuMikuWorld::Engine
                         n.weight = headWeight;
                         n.judged = false;
                         n.id = head.ID;
+                        n.trace = head.friction;
                         n.holdIndex = static_cast<int>(playtestHolds.size());
                         playtestNotes.push_back(n);
                         playtestHolds.push_back(std::move(h));
@@ -391,19 +397,25 @@ namespace MikuMikuWorld::Engine
                 }
         }
 
-        void DrawData::playtestFlick(int lane, int anchorLane, double time)
+        bool DrawData::playtestFlick(int lane, int anchorLane, double time, float dx, float dy)
         {
                 if (!playtestActive)
-                        return;
+                        return false;
 
                 constexpr double window = 0.2;
                 PlaytestNote* best = nullptr;
                 double bestDelta = window + 1.0;
+                const float adx = std::abs(dx);
+                const float ady = std::abs(dy);
                 for (auto& n : playtestNotes)
                 {
                         if (n.time > time + window)
                                 break;
                         if (n.judged || !n.flick || n.trace)
+                                continue;
+                        if (n.flickDir == 1 && !(dx < 0.0f && adx >= ady * 0.5f))
+                                continue;
+                        if (n.flickDir == 2 && !(dx > 0.0f && adx >= ady * 0.5f))
                                 continue;
                         const bool inLane = (lane >= n.lane && lane < n.lane + n.width) || (anchorLane >= n.lane && anchorLane < n.lane + n.width);
                         if (!inLane)
@@ -416,14 +428,23 @@ namespace MikuMikuWorld::Engine
                         }
                 }
                 if (!best)
-                        return;
+                        return false;
 
                 best->judged = true;
-                playtestHitTime[best->id] = time;
                 const int kind = playtestJudgeKind(bestDelta);
+                if (time < best->time)
+                {
+                        best->pending = true;
+                        best->pendingKind = kind;
+                        playtestPending.push_back(static_cast<size_t>(best - playtestNotes.data()));
+                        return true;
+                }
+
+                playtestHitTime[best->id] = time;
                 pushPlaytestEvent(*this, time, kind, best->weight);
                 if (kind <= 2)
                         playtestHits.emplace_back(best->id, time);
+                return true;
         }
 
         void DrawData::playtestTrace(unsigned int heldMask, const double* laneMoveAt, double now)
@@ -462,6 +483,11 @@ namespace MikuMikuWorld::Engine
                         playtestHitTime[n.id] = n.time;
                         pushPlaytestEvent(*this, n.time, 0, n.weight);
                         playtestHits.emplace_back(n.id, n.time);
+                        if (n.holdIndex >= 0)
+                        {
+                                playtestHolds[n.holdIndex].active = true;
+                                playtestHolds[n.holdIndex].pointer = -2;
+                        }
                 }
         }
 
@@ -514,6 +540,20 @@ namespace MikuMikuWorld::Engine
 
                 constexpr double window = 0.2;
                 constexpr double traceWindow = 0.1;
+                for (size_t idx : playtestPending)
+                {
+                        PlaytestNote& pn = playtestNotes[idx];
+                        if (!pn.pending || pn.time > now)
+                                continue;
+                        pn.pending = false;
+                        playtestHitTime[pn.id] = pn.time;
+                        pushPlaytestEvent(*this, pn.time, pn.pendingKind, pn.weight);
+                        if (pn.pendingKind <= 2)
+                                playtestHits.emplace_back(pn.id, pn.time);
+                }
+                playtestPending.erase(std::remove_if(playtestPending.begin(), playtestPending.end(),
+                        [this](size_t idx) { return !playtestNotes[idx].pending; }), playtestPending.end());
+
                 for (auto& n : playtestNotes)
                 {
                         if (n.time > now - traceWindow)
@@ -586,6 +626,7 @@ namespace MikuMikuWorld::Engine
                 hudLifeValues.clear();
                 playtestNotes.clear();
                 playtestActive = false;
+                playtestPending.clear();
                 playtestHolds.clear();
                 playtestHitTime.clear();
                 playtestHits.clear();
