@@ -68,7 +68,7 @@ namespace MikuMikuWorld
 			auto& timeline = config["timeline"];
 			timelineWidth = std::clamp(jsonIO::tryGetValue<int>(timeline, "lane_width", 26), MIN_LANE_WIDTH, MAX_LANE_WIDTH);
 			notesHeight = std::clamp(jsonIO::tryGetValue<int>(timeline, "notes_height", 26), MIN_NOTES_HEIGHT, MAX_NOTES_HEIGHT);
-			matchTimelineSizeToScreen = jsonIO::tryGetValue<bool>(timeline, "match_timeline_size_to_window", false);
+			matchTimelineSizeToScreen = jsonIO::tryGetValue<bool>(timeline, "match_timeline_size_to_window", true);
 			matchNotesSizeToTimeline = jsonIO::tryGetValue<bool>(timeline, "match_notes_size_to_timeline", true);
 
 			division = jsonIO::tryGetValue<int>(timeline, "division", 8);
@@ -324,6 +324,7 @@ namespace MikuMikuWorld
 		language = "en";
 
 		timelineWidth = 26;
+		matchTimelineSizeToScreen = true;
 		notesHeight = 26;
 		matchNotesSizeToTimeline = true;
 		division = 8;
