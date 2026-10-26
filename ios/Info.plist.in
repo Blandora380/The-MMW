@@ -3,9 +3,9 @@
 <plist version="1.0"><dict>
   <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleExecutable</key><string>${MACOSX_BUNDLE_EXECUTABLE_NAME}</string>
-  <key>CFBundleIdentifier</key><string>com.mm4ios.youkai</string>
-  <key>CFBundleName</key><string>MikuMikuWorld</string>
-  <key>CFBundleDisplayName</key><string>MikuMikuWorld</string>
+  <key>CFBundleIdentifier</key><string>com.the.mmwios</string>
+  <key>CFBundleName</key><string>The MMW</string>
+  <key>CFBundleDisplayName</key><string>The MMW</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${PROJECT_VERSION}</string>
   <key>CFBundleVersion</key><string>1</string>
