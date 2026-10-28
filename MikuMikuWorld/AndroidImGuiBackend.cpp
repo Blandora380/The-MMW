@@ -23,6 +23,8 @@ namespace MikuMikuWorld
 		int viewportTop = 0;
 		int viewportWidth = 1;
 		int viewportHeight = 1;
+            int safeMarginX = 0;
+            int safeMarginY = 0;
 		float density = 1.0f;
 		float previousTouchX = 0.0f;
 		float previousTouchY = 0.0f;
@@ -100,13 +102,26 @@ namespace MikuMikuWorld
 		// Keep Android controls comfortably touchable without letting high-density
 		// phone displays scale the desktop editor beyond a moderate 1.5x.
 		density = std::clamp(newDensity, 1.0f, 1.5f);
-		viewportWidth = displayWidth;
-                viewportHeight = displayHeight;
-                viewportLeft = 0;
-                viewportTop = 0;
+		const int marginX = std::clamp(safeMarginX, 0, std::max(0, displayWidth / 4));
+                const int marginY = std::clamp(safeMarginY, 0, std::max(0, displayHeight / 4));
+                viewportLeft = marginX;
+                viewportTop = marginY;
+                viewportWidth = std::max(1, displayWidth - marginX * 2);
+                viewportHeight = std::max(1, displayHeight - marginY * 2);
 	}
 
-	int AndroidImGui_GetViewportLeft() { return viewportLeft; }
+	void AndroidImGui_SetSafeMargin(int x, int y)
+    {
+        x = std::max(0, x);
+        y = std::max(0, y);
+        if (x == safeMarginX && y == safeMarginY)
+            return;
+        safeMarginX = x;
+        safeMarginY = y;
+        AndroidImGui_SetDisplay(displayWidth, displayHeight, density);
+    }
+
+    int AndroidImGui_GetViewportLeft() { return viewportLeft; }
 	int AndroidImGui_GetViewportTop() { return viewportTop; }
 	int AndroidImGui_GetViewportWidth() { return viewportWidth; }
 	int AndroidImGui_GetViewportHeight() { return viewportHeight; }

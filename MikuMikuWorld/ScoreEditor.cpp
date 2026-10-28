@@ -261,6 +261,9 @@ namespace MikuMikuWorld
                         }
                 }
 
+                #ifdef __ANDROID__
+                AndroidImGui_SetSafeMargin(config.androidSafeMarginX, config.androidSafeMarginY);
+#endif
                 settingsWindow.update();
 		aboutDialog.update();
 		mp4ExportWindow.update(context, timeline, preview);

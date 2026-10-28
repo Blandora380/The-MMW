@@ -8,6 +8,7 @@
 namespace MikuMikuWorld
 {
 	void AndroidImGui_SetDisplay(int width, int height, float density);
+    void AndroidImGui_SetSafeMargin(int x, int y);
 	int AndroidImGui_GetViewportLeft();
 	int AndroidImGui_GetViewportTop();
 	int AndroidImGui_GetViewportWidth();
