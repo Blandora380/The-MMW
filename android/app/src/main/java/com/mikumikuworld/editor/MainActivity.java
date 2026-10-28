@@ -353,6 +353,13 @@ public final class MainActivity extends NativeActivity {
             pickerId = id;
             pickerSave = save;
             pickerExtensions = extensions;
+            if (!save && android.os.Build.VERSION.SDK_INT >= 33
+                    && (title.startsWith("Open Jacket") || title.equals("Open MV Video"))) {
+                Intent pick = new Intent(android.provider.MediaStore.ACTION_PICK_IMAGES);
+                pick.setType(title.equals("Open MV Video") ? "video/*" : "image/*");
+                startActivityForResult(pick, PICKER_REQUEST);
+                return;
+            }
             Intent intent = new Intent(save ? Intent.ACTION_CREATE_DOCUMENT : Intent.ACTION_OPEN_DOCUMENT);
             intent.addCategory(Intent.CATEGORY_OPENABLE);
             intent.setType("*/*");
@@ -432,7 +439,7 @@ public final class MainActivity extends NativeActivity {
                     try {
                         int granted = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                         getContentResolver().takePersistableUriPermission(uri, granted);
-                    } catch (SecurityException ignored) {
+                    } catch (Exception ignored) {
                     }
                 }
             } catch (Exception exception) {

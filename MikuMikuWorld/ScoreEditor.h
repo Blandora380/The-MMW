@@ -40,6 +40,7 @@ namespace MikuMikuWorld
                         unsigned long long size{ 0 };
                 };
                 bool explorerOpen{ false };
+                int explorerMode{ 0 };
                 bool explorerNeedsRefresh{ true };
                 bool explorerDenied{ false };
                 bool explorerShowAll{ false };

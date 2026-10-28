@@ -271,6 +271,18 @@ namespace MikuMikuWorld
                 #ifdef __ANDROID__
                 AndroidImGui_SetSafeMargin(config.androidSafeMarginX, 0);
 #endif
+                #ifdef __ANDROID__
+                if (propertiesWindow.requestMusicExplorer)
+                {
+                        propertiesWindow.requestMusicExplorer = false;
+                        explorerMode = 1;
+                        explorerOpen = true;
+                        explorerNeedsRefresh = true;
+                        explorerSelected.clear();
+                        if (explorerDir.empty())
+                                explorerDir = "/storage/emulated/0";
+                }
+#endif
                 drawFileExplorer();
                 settingsWindow.update();
 		aboutDialog.update();
@@ -453,6 +465,7 @@ namespace MikuMikuWorld
 	void ScoreEditor::open()
         {
 #ifdef __ANDROID__
+                explorerMode = 0;
                 explorerOpen = true;
                 explorerNeedsRefresh = true;
                 if (explorerDir.empty())
@@ -912,7 +925,10 @@ namespace MikuMikuWorld
                                         const size_t n = std::strlen(ext);
                                         return lower.size() >= n && lower.compare(lower.size() - n, n, ext) == 0;
                                 };
-                                if (!endsWith(".mmws") && !endsWith(".sus") && !endsWith(".json") && !endsWith(".gz") && lower.find("leveldata") == std::string::npos)
+                                const bool allowed = explorerMode == 1
+                                        ? (endsWith(".mp3") || endsWith(".wav") || endsWith(".flac") || endsWith(".ogg"))
+                                        : (endsWith(".mmws") || endsWith(".sus") || endsWith(".json") || endsWith(".gz") || lower.find("leveldata") != std::string::npos);
+                                if (!allowed)
                                         continue;
                         }
 
@@ -952,7 +968,7 @@ namespace MikuMikuWorld
                 ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
                 ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x * 0.9f, viewport->WorkSize.y * 0.9f), ImGuiCond_Always);
                 ImGui::SetNextWindowViewport(viewport->ID);
-                if (!ImGui::BeginPopupModal("Open chart###file_explorer", NULL, ImGuiWindowFlags_NoResize))
+                if (!ImGui::BeginPopupModal(explorerMode == 1 ? "Open music###file_explorer" : "Open chart###file_explorer", NULL, ImGuiWindowFlags_NoResize))
                         return;
 
                 if (explorerNeedsRefresh)
@@ -1049,7 +1065,15 @@ namespace MikuMikuWorld
                 ImGui::EndPopup();
 
                 if (openPressed && !chosen.empty())
-                        loadScore(chosen);
+                {
+                        if (explorerMode == 1)
+                        {
+                                propertiesWindow.pendingLoadMusicFilename = chosen;
+                                propertiesWindow.isPendingLoadMusic = true;
+                        }
+                        else
+                                loadScore(chosen);
+                }
         }
 
         void ScoreEditor::autoSaveIfModified()

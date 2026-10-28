@@ -26,6 +26,7 @@ namespace MikuMikuWorld
 	public:
 		std::string pendingLoadMusicFilename{};
 		bool isPendingLoadMusic{ false };
+             bool requestMusicExplorer{ false };
 		bool isLoadingMusic{ false };
 		bool isLoadingJacket{ false };
 		void update(ScoreContext& context);

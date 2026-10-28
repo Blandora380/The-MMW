@@ -88,7 +88,7 @@ namespace MikuMikuWorld
 			else if (result == 2)
 			{
 				IO::FileDialog fileDialog{};
-				fileDialog.title = "Open Image File";
+				fileDialog.title = "Open Jacket Image";
 				fileDialog.filters = { IO::imageFilter, IO::allFilter };
 				fileDialog.parentWindowHandle = Application::windowState.windowHandle;
 
@@ -115,7 +115,13 @@ namespace MikuMikuWorld
 				isPendingLoadMusic = true;
 				pendingLoadMusicFilename = musicFilename;
 			}
-			else if (filePickResult == 2)
+			#ifdef __ANDROID__
+                        else if (filePickResult == 2)
+                        {
+                                requestMusicExplorer = true;
+                        }
+#endif
+                        else if (filePickResult == 2)
 			{
 				IO::FileDialog fileDialog{};
 				fileDialog.title = "Open Audio File";
