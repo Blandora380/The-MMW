@@ -32,6 +32,20 @@ namespace MikuMikuWorld
                 bool dirtyMarker{false};
                 bool recoverPending{false};
                 std::string recoverFile;
+
+                struct ExplorerEntry
+                {
+                        std::string name;
+                        bool isDir{ false };
+                        unsigned long long size{ 0 };
+                };
+                bool explorerOpen{ false };
+                bool explorerNeedsRefresh{ true };
+                bool explorerDenied{ false };
+                bool explorerShowAll{ false };
+                std::string explorerDir;
+                std::string explorerSelected;
+                std::vector<ExplorerEntry> explorerEntries;
 		std::string autoSavePath;
 		bool showImGuiDemoWindow{false};
 
@@ -56,6 +70,8 @@ namespace MikuMikuWorld
 		bool trySave(std::string);
 		void autoSave();
                 void autoSaveIfModified();
+                void refreshExplorer();
+                void drawFileExplorer();
 		int deleteOldAutoSave(int count);
 		size_t updateRecentFilesList(const std::string& entry);
 

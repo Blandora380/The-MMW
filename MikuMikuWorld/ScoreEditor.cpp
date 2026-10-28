@@ -1,3 +1,10 @@
+#ifdef __ANDROID__
+#include "AndroidFileDialog.h"
+#endif
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <filesystem>
 #include <system_error>
@@ -264,6 +271,7 @@ namespace MikuMikuWorld
                 #ifdef __ANDROID__
                 AndroidImGui_SetSafeMargin(config.androidSafeMarginX, 0);
 #endif
+                drawFileExplorer();
                 settingsWindow.update();
 		aboutDialog.update();
 		mp4ExportWindow.update(context, timeline, preview);
@@ -443,7 +451,14 @@ namespace MikuMikuWorld
 	}
 
 	void ScoreEditor::open()
-	{
+        {
+#ifdef __ANDROID__
+                explorerOpen = true;
+                explorerNeedsRefresh = true;
+                if (explorerDir.empty())
+                        explorerDir = "/storage/emulated/0";
+                return;
+#endif
 		IO::FileDialog fileDialog{};
 		fileDialog.parentWindowHandle = Application::windowState.windowHandle;
 		fileDialog.title = "Open Chart";
@@ -866,7 +881,178 @@ namespace MikuMikuWorld
 #endif
 	}
 
-	void ScoreEditor::autoSaveIfModified()
+	void ScoreEditor::refreshExplorer()
+        {
+                explorerEntries.clear();
+                explorerDenied = false;
+
+                std::error_code ec;
+                std::filesystem::directory_iterator it(explorerDir, ec);
+                const std::filesystem::directory_iterator end;
+                if (ec)
+                {
+                        explorerDenied = true;
+                        return;
+                }
+
+                for (; !ec && it != end; it.increment(ec))
+                {
+                        std::error_code entryEc;
+                        const bool isDir = it->is_directory(entryEc);
+                        const std::string name = it->path().filename().string();
+                        if (name.empty() || name[0] == '.')
+                                continue;
+
+                        if (!isDir && !explorerShowAll)
+                        {
+                                std::string lower = name;
+                                std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                                auto endsWith = [&](const char* ext)
+                                {
+                                        const size_t n = std::strlen(ext);
+                                        return lower.size() >= n && lower.compare(lower.size() - n, n, ext) == 0;
+                                };
+                                if (!endsWith(".mmws") && !endsWith(".sus") && !endsWith(".json") && !endsWith(".gz") && lower.find("leveldata") == std::string::npos)
+                                        continue;
+                        }
+
+                        ExplorerEntry entry;
+                        entry.name = name;
+                        entry.isDir = isDir;
+                        if (!isDir)
+                        {
+                                const auto size = it->file_size(entryEc);
+                                entry.size = entryEc ? 0 : static_cast<unsigned long long>(size);
+                        }
+                        explorerEntries.push_back(std::move(entry));
+                }
+
+                auto lowerOf = [](std::string text)
+                {
+                        std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                        return text;
+                };
+                std::sort(explorerEntries.begin(), explorerEntries.end(), [&](const ExplorerEntry& a, const ExplorerEntry& b)
+                {
+                        if (a.isDir != b.isDir)
+                                return a.isDir;
+                        return lowerOf(a.name) < lowerOf(b.name);
+                });
+        }
+
+        void ScoreEditor::drawFileExplorer()
+        {
+                if (!explorerOpen)
+                        return;
+
+                if (!ImGui::IsPopupOpen("###file_explorer"))
+                        ImGui::OpenPopup("###file_explorer");
+
+                ImGuiViewport* viewport = ImGui::GetMainViewport();
+                ImGui::SetNextWindowPos(viewport->GetWorkCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+                ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x * 0.9f, viewport->WorkSize.y * 0.9f), ImGuiCond_Always);
+                ImGui::SetNextWindowViewport(viewport->ID);
+                if (!ImGui::BeginPopupModal("Open chart###file_explorer", NULL, ImGuiWindowFlags_NoResize))
+                        return;
+
+                if (explorerNeedsRefresh)
+                {
+                        refreshExplorer();
+                        explorerNeedsRefresh = false;
+                }
+
+                const ImGuiStyle& style = ImGui::GetStyle();
+                const float rowHeight = ImGui::GetFrameHeight() * 1.4f;
+                auto goTo = [&](const std::string& dir)
+                {
+                        explorerDir = dir;
+                        explorerSelected.clear();
+                        explorerNeedsRefresh = true;
+                };
+                auto joinPath = [&](const std::string& name)
+                {
+                        return explorerDir + (explorerDir.back() == '/' ? "" : "/") + name;
+                };
+
+                if (ImGui::Button("Up", ImVec2(0.0f, rowHeight)))
+                {
+                        const std::string parent = std::filesystem::path(explorerDir).parent_path().string();
+                        if (!parent.empty() && parent != explorerDir)
+                                goTo(parent);
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Storage", ImVec2(0.0f, rowHeight)))
+                        goTo("/storage/emulated/0");
+                ImGui::SameLine();
+                if (ImGui::Button("Download", ImVec2(0.0f, rowHeight)))
+                        goTo("/storage/emulated/0/Download");
+                ImGui::SameLine();
+                if (ImGui::Button("Documents", ImVec2(0.0f, rowHeight)))
+                        goTo("/storage/emulated/0/Documents");
+
+                ImGui::TextWrapped("%s", explorerDir.c_str());
+                if (ImGui::Checkbox("Show all files", &explorerShowAll))
+                        explorerNeedsRefresh = true;
+
+                if (explorerDenied)
+                {
+                        ImGui::TextWrapped("Cannot read this folder. Allow 'All files access' for this app to browse storage.");
+#ifdef __ANDROID__
+                        if (ImGui::Button("Open permission settings", ImVec2(0.0f, rowHeight)))
+                                AndroidFileDialog_ShowPermissions();
+#endif
+                }
+
+                const float footer = rowHeight + style.ItemSpacing.y * 2.0f;
+                if (ImGui::BeginChild("###explorer_list", ImVec2(0.0f, -footer), true))
+                {
+                        for (const auto& entry : explorerEntries)
+                        {
+                                std::string label = entry.isDir ? ("[folder] " + entry.name) : entry.name;
+                                if (!entry.isDir)
+                                {
+                                        char sizeText[48];
+                                        std::snprintf(sizeText, sizeof(sizeText), "  (%llu KB)", (entry.size + 1023ULL) / 1024ULL);
+                                        label += sizeText;
+                                }
+
+                                const bool selected = !entry.isDir && entry.name == explorerSelected;
+                                if (ImGui::Selectable(label.c_str(), selected, 0, ImVec2(0.0f, rowHeight)))
+                                {
+                                        if (entry.isDir)
+                                        {
+                                                goTo(joinPath(entry.name));
+                                                break;
+                                        }
+                                        explorerSelected = entry.name;
+                                }
+                        }
+
+                        if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 8.0f))
+                                ImGui::SetScrollY(ImGui::GetScrollY() - ImGui::GetIO().MouseDelta.y);
+                }
+                ImGui::EndChild();
+
+                const float half = (ImGui::GetContentRegionAvail().x - style.ItemSpacing.x) * 0.5f;
+                const std::string chosen = explorerSelected.empty() ? std::string() : joinPath(explorerSelected);
+                ImGui::BeginDisabled(explorerSelected.empty());
+                const bool openPressed = ImGui::Button("Open", ImVec2(half, rowHeight));
+                ImGui::EndDisabled();
+                ImGui::SameLine();
+                const bool cancelPressed = ImGui::Button("Cancel", ImVec2(half, rowHeight));
+
+                if (openPressed || cancelPressed)
+                {
+                        explorerOpen = false;
+                        ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+
+                if (openPressed && !chosen.empty())
+                        loadScore(chosen);
+        }
+
+        void ScoreEditor::autoSaveIfModified()
         {
                 if (!config.autoSaveEnabled || context.upToDate || context.score.notes.empty())
                         return;
