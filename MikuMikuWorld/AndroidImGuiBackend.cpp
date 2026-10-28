@@ -100,21 +100,10 @@ namespace MikuMikuWorld
 		// Keep Android controls comfortably touchable without letting high-density
 		// phone displays scale the desktop editor beyond a moderate 1.5x.
 		density = std::clamp(newDensity, 1.0f, 1.5f);
-		constexpr float targetAspect = 16.0f / 9.0f;
-		if (static_cast<float>(displayWidth) / displayHeight > targetAspect)
-		{
-			viewportHeight = displayHeight;
-			viewportWidth = std::max(1, static_cast<int>(displayHeight * targetAspect));
-			viewportLeft = (displayWidth - viewportWidth) / 2;
-			viewportTop = 0;
-		}
-		else
-		{
-			viewportWidth = displayWidth;
-			viewportHeight = std::max(1, static_cast<int>(displayWidth / targetAspect));
-			viewportLeft = 0;
-			viewportTop = (displayHeight - viewportHeight) / 2;
-		}
+		viewportWidth = displayWidth;
+                viewportHeight = displayHeight;
+                viewportLeft = 0;
+                viewportTop = 0;
 	}
 
 	int AndroidImGui_GetViewportLeft() { return viewportLeft; }
