@@ -138,7 +138,6 @@ namespace MikuMikuWorld
 			autoSaveInterval = jsonIO::tryGetValue<int>(config["save"], "auto_save_interval", 5);
 			autoSaveMaxCount = jsonIO::tryGetValue<int>(config["save"], "auto_save_max_count", 100);
                 androidSafeMarginX = std::clamp(jsonIO::tryGetValue<int>(config["save"], "android_safe_margin_x", 90), 0, 400);
-                androidSafeMarginY = std::clamp(jsonIO::tryGetValue<int>(config["save"], "android_safe_margin_y", 45), 0, 400);
 		}
 
 		if (jsonIO::keyExists(config, "audio"))
@@ -272,8 +271,7 @@ namespace MikuMikuWorld
 			{"auto_save_enabled", autoSaveEnabled},
 			{"auto_save_interval", autoSaveInterval},
 			{"auto_save_max_count", autoSaveMaxCount},
-                {"android_safe_margin_x", androidSafeMarginX},
-                {"android_safe_margin_y", androidSafeMarginY}
+                {"android_safe_margin_x", androidSafeMarginX}
 		};
 
 		config["audio"] = {
@@ -382,7 +380,6 @@ namespace MikuMikuWorld
 		autoSaveInterval = 5;
 		autoSaveMaxCount = 100;
         androidSafeMarginX = 90;
-        androidSafeMarginY = 45;
 
 		seProfileIndex = 0;
 		masterVolume = 1.0f;

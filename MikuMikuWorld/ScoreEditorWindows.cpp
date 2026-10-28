@@ -1017,7 +1017,6 @@ namespace MikuMikuWorld
 						UI::addIntProperty(getString("auto_save_count"), config.autoSaveMaxCount);
 #ifdef __ANDROID__
                         UI::addIntProperty("Screen margin (left/right)", config.androidSafeMarginX, "%dpx", 0, 400);
-                        UI::addIntProperty("Screen margin (top/bottom)", config.androidSafeMarginY, "%dpx", 0, 400);
 #endif
 						UI::endPropertyColumns();
 					}

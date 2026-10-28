@@ -262,7 +262,7 @@ namespace MikuMikuWorld
                 }
 
                 #ifdef __ANDROID__
-                AndroidImGui_SetSafeMargin(config.androidSafeMarginX, config.androidSafeMarginY);
+                AndroidImGui_SetSafeMargin(config.androidSafeMarginX, 0);
 #endif
                 settingsWindow.update();
 		aboutDialog.update();

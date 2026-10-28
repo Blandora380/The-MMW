@@ -104,7 +104,6 @@ namespace MikuMikuWorld
 		int autoSaveInterval;
 		int autoSaveMaxCount;
             int androidSafeMarginX;
-            int androidSafeMarginY;
 		float masterVolume;
 		float bgmVolume;
 		float seVolume;
