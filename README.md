@@ -69,6 +69,7 @@ not included in the public source; the renderer falls back to the bundled font.
 
 ## Credits and license
 
+- Forked from youkai's mmw4andr
 - Original project: [crash5band/MikuMikuWorld](https://github.com/crash5band/MikuMikuWorld)
 - Original fork: [watagashi-uni](https://github.com/watagashi-uni/)
 - Android port: **-YOUKAI- and the (Discord @desktop2202, blandora2000)**
