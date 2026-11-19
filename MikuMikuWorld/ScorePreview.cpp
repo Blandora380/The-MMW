@@ -1,3 +1,5 @@
+#include <atomic>
+#include <chrono>
 #ifdef __ANDROID__
 #include "AndroidImGuiBackend.h"
 #endif
@@ -108,6 +110,8 @@ namespace MikuMikuWorld
 		bool hasFrameForStream{};
 		uint64_t currentFrameIndex{};
 		uint64_t nextFrameIndex{};
+                std::atomic<int64_t> targetFrameHint{ -1 };
+                std::chrono::steady_clock::time_point lastResync{};
 #endif
 
 #ifdef _WIN32
@@ -341,9 +345,10 @@ namespace MikuMikuWorld
 				currentFrameIndex = 0;
 				nextFrameIndex = 0;
 			}
-			filename = videoFile;
-			started = true;
-			readerThread = std::thread(&ScorePreviewVideoDecoder::readFrames, this);
+			targetFrameHint.store(-1);
+                        filename = videoFile;
+                        started = true;
+                        readerThread = std::thread(&ScorePreviewVideoDecoder::readFrames, this);
 			return true;
 		}
 
@@ -369,9 +374,19 @@ namespace MikuMikuWorld
 						const int64_t timestamp = frame->best_effort_timestamp;
 						const double frameTime = timestamp == AV_NOPTS_VALUE ? streamStartTime : timestamp * av_q2d(stream->time_base);
 						const int64_t frameIndex = static_cast<int64_t>(std::llround((frameTime - streamStartTime) * VIDEO_FPS));
-						if (frameIndex >= 0)
-						{
-							DecodedFrame decoded{};
+						if (frameIndex >= 0 && targetFrameHint.load() >= 0)
+                                                {
+                                                        const int64_t lateBy = targetFrameHint.load() - frameIndex;
+                                                        codecContext->skip_frame = lateBy > 12 ? AVDISCARD_NONREF : AVDISCARD_DEFAULT;
+                                                        if (lateBy > 4)
+                                                        {
+                                                                av_frame_unref(frame);
+                                                                continue;
+                                                        }
+                                                }
+                                                if (frameIndex >= 0)
+                                                {
+                                                        DecodedFrame decoded{};
 							decoded.index = static_cast<uint64_t>(frameIndex);
 							decoded.pixels.resize(FRAME_BYTES);
 							const auto pixelFormat = static_cast<AVPixelFormat>(frame->format);
@@ -506,6 +521,21 @@ namespace MikuMikuWorld
 				return;
 
 			const uint64_t targetFrame = static_cast<uint64_t>(std::max(0.0, std::floor((timelineTime - streamStartTime) * VIDEO_FPS)));
+#ifdef __ANDROID__
+                        targetFrameHint.store(static_cast<int64_t>(targetFrame));
+                        if (isPlaying && !waitForTargetFrame && hasFrameForStream && targetFrame > currentFrameIndex + 90)
+                        {
+                                const auto resyncNow = std::chrono::steady_clock::now();
+                                if (resyncNow - lastResync > std::chrono::seconds(2))
+                                {
+                                        lastResync = resyncNow;
+                                        filename.clear();
+                                        startStream(videoFile, timelineTime);
+                                        lastRequestedTime = timelineTime;
+                                        return;
+                                }
+                        }
+#endif
 			bool changed = false;
 			while (true)
 			{
