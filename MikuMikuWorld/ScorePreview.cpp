@@ -84,7 +84,10 @@ namespace MikuMikuWorld
 		static constexpr size_t FRAME_BYTES = static_cast<size_t>(VIDEO_WIDTH) * VIDEO_HEIGHT * 4;
 
 		std::string filename;
-		double streamStartTime{};
+                double streamStartTime{};
+                double videoDurationSec{ -1.0 };
+                bool textureValid{};
+                std::string textureFile;
 		double lastRequestedTime{};
 		uint64_t decodedFrames{};
 		bool started{};
@@ -330,8 +333,11 @@ namespace MikuMikuWorld
 				return false;
 			}
 
-			streamStartTime = std::max(0.0, startTime);
-			lastRequestedTime = streamStartTime;
+			videoDurationSec = formatContext->duration > 0 ? static_cast<double>(formatContext->duration) / AV_TIME_BASE : -1.0;
+                        streamStartTime = std::max(0.0, startTime);
+                        if (videoDurationSec > 0.0)
+                                streamStartTime = std::min(streamStartTime, std::max(0.0, videoDurationSec - 0.25));
+                        lastRequestedTime = streamStartTime;
 			const AVRational timeBase = formatContext->streams[videoStreamIndex]->time_base;
 			const int64_t seekTimestamp = av_rescale_q(static_cast<int64_t>(streamStartTime * AV_TIME_BASE), AV_TIME_BASE_Q, timeBase);
 			av_seek_frame(formatContext, videoStreamIndex, seekTimestamp, AVSEEK_FLAG_BACKWARD);
@@ -467,8 +473,10 @@ namespace MikuMikuWorld
 				glBindTexture(GL_TEXTURE_2D, texture);
 				glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, VIDEO_WIDTH, VIDEO_HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, latestFrame.data());
-			}
-			glBindTexture(GL_TEXTURE_2D, 0);
+                        }
+                        glBindTexture(GL_TEXTURE_2D, 0);
+                        textureFile = filename;
+                        textureValid = true;
 		}
 
 	public:
@@ -501,7 +509,9 @@ namespace MikuMikuWorld
 			}
 			(void)isPlaying; (void)waitForTargetFrame;
 #elif defined(_WIN32) || defined(__ANDROID__)
-			const bool pathChanged = videoFile != filename;
+			if (textureValid && videoFile != textureFile)
+                                textureValid = false;
+                        const bool pathChanged = videoFile != filename;
 			const bool jumped = started && (isPlaying
 				? std::abs(timelineTime - lastRequestedTime) > 0.25
 				: std::abs(timelineTime - lastRequestedTime) > 0.02);
@@ -520,7 +530,8 @@ namespace MikuMikuWorld
 			if (!started)
 				return;
 
-			const uint64_t targetFrame = static_cast<uint64_t>(std::max(0.0, std::floor((timelineTime - streamStartTime) * VIDEO_FPS)));
+			const double clampedTime = videoDurationSec > 0.0 ? std::min(timelineTime, videoDurationSec) : timelineTime;
+                        const uint64_t targetFrame = static_cast<uint64_t>(std::max(0.0, std::floor((clampedTime - streamStartTime) * VIDEO_FPS)));
 #ifdef __ANDROID__
                         targetFrameHint.store(static_cast<int64_t>(targetFrame));
                         if (isPlaying && !waitForTargetFrame && hasFrameForStream && targetFrame > currentFrameIndex + 90)
@@ -572,7 +583,7 @@ namespace MikuMikuWorld
 #ifdef MIKUMIKUWORLD_IOS
 			return texture != 0 && started;
 #elif defined(_WIN32) || defined(__ANDROID__)
-			return texture != 0 && hasFrameForStream;
+			return texture != 0 && textureValid;
 #else
 			return false;
 #endif
