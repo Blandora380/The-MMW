@@ -327,7 +327,7 @@ namespace MikuMikuWorld
 			}
 			codecContext = avcodec_alloc_context3(decoder);
 			if (!codecContext || avcodec_parameters_to_context(codecContext, formatContext->streams[videoStreamIndex]->codecpar) < 0 ||
-				avcodec_open2(codecContext, decoder, nullptr) < 0)
+				(codecContext->thread_count = 4, codecContext->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE, avcodec_open2(codecContext, decoder, nullptr)) < 0)
 			{
 				stopStream();
 				return false;
@@ -383,8 +383,8 @@ namespace MikuMikuWorld
 						if (frameIndex >= 0 && targetFrameHint.load() >= 0)
                                                 {
                                                         const int64_t lateBy = targetFrameHint.load() - frameIndex;
-                                                        codecContext->skip_frame = lateBy > 12 ? AVDISCARD_NONREF : AVDISCARD_DEFAULT;
-                                                        if (lateBy > 4)
+                                                        codecContext->skip_frame = lateBy > 24 ? AVDISCARD_NONREF : AVDISCARD_DEFAULT;
+                                                        if (lateBy > 6 && (frameIndex % 4) != 0)
                                                         {
                                                                 av_frame_unref(frame);
                                                                 continue;
@@ -534,10 +534,10 @@ namespace MikuMikuWorld
                         const uint64_t targetFrame = static_cast<uint64_t>(std::max(0.0, std::floor((clampedTime - streamStartTime) * VIDEO_FPS)));
 #ifdef __ANDROID__
                         targetFrameHint.store(static_cast<int64_t>(targetFrame));
-                        if (isPlaying && !waitForTargetFrame && hasFrameForStream && targetFrame > currentFrameIndex + 90)
+                        if (isPlaying && !waitForTargetFrame && hasFrameForStream && targetFrame > currentFrameIndex + 180)
                         {
                                 const auto resyncNow = std::chrono::steady_clock::now();
-                                if (resyncNow - lastResync > std::chrono::seconds(2))
+                                if (resyncNow - lastResync > std::chrono::seconds(4))
                                 {
                                         lastResync = resyncNow;
                                         filename.clear();
