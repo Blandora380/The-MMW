@@ -6,6 +6,7 @@
 #include "IOSPlatform.h"
 #import <UIKit/UIKit.h>
 #import <QuartzCore/CAEAGLLayer.h>
+#import <QuartzCore/QuartzCore.h>
 #import <OpenGLES/EAGL.h>
 #import <AVFoundation/AVFoundation.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -14,6 +15,8 @@
 #include <cmath>
 #include <filesystem>
 #include <set>
+#include <vector>
+#include <unordered_map>
 
 using namespace MikuMikuWorld;
 namespace {
@@ -28,6 +31,11 @@ namespace {
     UITextField* inputField;
     CFTimeInterval lastFrame = 0;
     std::set<std::string> pendingExports;
+
+    struct TouchRecord { int type; int touchId; float x; float y; double time; };
+    std::vector<TouchRecord> touchQueue;
+    std::unordered_map<const void*, int> touchIds;
+    int nextTouchId = 1;
 
     NSString* ns(const std::string& text) { return [NSString stringWithUTF8String:text.c_str()] ?: @""; }
     NSString* documents() {
@@ -189,6 +197,13 @@ namespace {
                 };
             }
             editor.update();
+            {
+                const bool playtestInput = gPlaytestTouchActive;
+                gPlaytestTouchActive = false;
+                for (UIGestureRecognizer* recognizer in self.gestureRecognizers) {
+                    if (recognizer.enabled == playtestInput) recognizer.enabled = !playtestInput;
+                }
+            }
             AndroidFileDialog_UpdateTextInput(ImGui::GetIO().WantTextInput);
             glDisable(GL_SCISSOR_TEST);
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFbo);
@@ -224,17 +239,55 @@ namespace {
     ImGui::GetIO().AddMousePosEvent((point.x * self.contentScaleFactor - viewportLeft) / density,
                                   (point.y * self.contentScaleFactor - viewportTop) / density);
 }
+- (void)recordTouches:(NSSet<UITouch*>*)touches type:(int)type {
+    for (UITouch* touch in touches) {
+        const void* key = (__bridge const void*)touch;
+        int touchId = 0;
+        auto found = touchIds.find(key);
+        if (found == touchIds.end()) {
+            if (type != 0) continue;
+            touchId = nextTouchId++;
+            touchIds[key] = touchId;
+        } else {
+            touchId = found->second;
+        }
+        const CGPoint point = [touch locationInView:self];
+        const float x = (point.x * self.contentScaleFactor - viewportLeft) / density;
+        const float y = (point.y * self.contentScaleFactor - viewportTop) / density;
+        bool merged = false;
+        if (type == 1) {
+            for (auto it = touchQueue.rbegin(); it != touchQueue.rend(); ++it) {
+                if (it->touchId != touchId) continue;
+                if (it->type == 1) {
+                    it->x = x;
+                    it->y = y;
+                    it->time = touch.timestamp;
+                    merged = true;
+                }
+                break;
+            }
+        }
+        if (!merged) {
+            if (touchQueue.size() >= 512) touchQueue.erase(touchQueue.begin(), touchQueue.begin() + 256);
+            touchQueue.push_back({ type, touchId, x, y, touch.timestamp });
+        }
+        if (type == 2) touchIds.erase(key);
+    }
+}
 - (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
     if (!ready || modalDepth) return;
+    [self recordTouches:touches type:0];
     if (event.allTouches.count > 1) { ImGui::GetIO().AddMouseButtonEvent(0, false); return; }
     [self mouseAt:[touches.anyObject locationInView:self]];
     ImGui::GetIO().AddMouseButtonEvent(0, true);
 }
 - (void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
+    if (ready && !modalDepth) [self recordTouches:touches type:1];
     if (event.allTouches.count == 1) [self mouseAt:[touches.anyObject locationInView:self]];
 }
 - (void)touchesEnded:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
     if (!ready) return;
+    [self recordTouches:touches type:2];
     ImGui::GetIO().AddMouseButtonEvent(0, false);
     ImGui::GetIO().AddMouseButtonEvent(1, false);
 }
@@ -325,6 +378,16 @@ namespace MikuMikuWorld {
     int AndroidImGui_GetViewportHeight() { return viewportHeight; }
     float AndroidImGui_GetDensity() { return density; }
     float AndroidImGui_ConsumePinchZoom() { float result = pinchDelta; pinchDelta = 0; return result; }
+    int AndroidImGui_ConsumeTouchEvents(AndroidTouchEvent* out, int maxCount) {
+        const double now = CACurrentMediaTime();
+        int count = 0;
+        for (const auto& e : touchQueue) {
+            if (count >= maxCount) break;
+            out[count++] = { e.type, e.touchId, e.x, e.y, std::max(0.0, now - e.time) };
+        }
+        touchQueue.erase(touchQueue.begin(), touchQueue.begin() + count);
+        return count;
+    }
     void AndroidRequestExit() { exitRequested = true; }
     bool AndroidExitRequested() { return exitRequested; }
     void AndroidImGui_QueueText(const char* text) { if (ready && text) ImGui::GetIO().AddInputCharactersUTF8(text); }

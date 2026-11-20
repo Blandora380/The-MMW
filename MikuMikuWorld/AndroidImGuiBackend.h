@@ -27,6 +27,7 @@ namespace MikuMikuWorld
         struct AndroidTouchEvent { int type; int id; float x; float y; double ageSec; };
         int AndroidImGui_ConsumeTouchEvents(AndroidTouchEvent* out, int maxCount);
 	float AndroidImGui_GetDensity();
+        extern bool gPlaytestTouchActive;
 	void AndroidRequestExit();
 	bool AndroidExitRequested();
 }

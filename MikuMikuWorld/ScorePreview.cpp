@@ -1,6 +1,6 @@
 #include <atomic>
 #include <chrono>
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
 #include "AndroidImGuiBackend.h"
 #endif
 #include <cstdio>
@@ -1204,14 +1204,16 @@ namespace MikuMikuWorld
                 }
 	}
 
-	void ScorePreviewWindow::updatePlaytest(ScoreContext& context, ImVec2 position, float sx, float layoutWidth, float laneWidth)
+	bool gPlaytestTouchActive = false;
+
+        void ScorePreviewWindow::updatePlaytest(ScoreContext& context, ImVec2 position, float sx, float layoutWidth, float laneWidth)
         {
                 auto& data = context.scorePreviewDrawData;
                 (void)position;
                 (void)sx;
                 (void)layoutWidth;
                 (void)laneWidth;
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
                 AndroidTouchEvent events[64];
                 const int eventCount = AndroidImGui_ConsumeTouchEvents(events, 64);
 #endif
@@ -1227,6 +1229,7 @@ namespace MikuMikuWorld
                 const double now = context.getTimeAtCurrentTick();
                 const bool started = playbackState.isPlaying && !playtestWasPlaying;
                 playtestWasPlaying = playbackState.isPlaying;
+                gPlaytestTouchActive = playbackState.isPlaying;
                 if (started || !data.playtestActive)
                 {
                         data.beginPlaytest(context.score, now);
@@ -1242,7 +1245,7 @@ namespace MikuMikuWorld
                         return;
                 }
 
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(MIKUMIKUWORLD_IOS)
                 auto laneAt = [&](float x)
                 {
                         const float laneF = ((x - position.x) / sx - layoutWidth * 0.5f) / laneWidth + 6.0f;
