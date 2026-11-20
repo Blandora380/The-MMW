@@ -380,7 +380,9 @@ namespace MikuMikuWorld
 						const int64_t timestamp = frame->best_effort_timestamp;
 						const double frameTime = timestamp == AV_NOPTS_VALUE ? streamStartTime : timestamp * av_q2d(stream->time_base);
 						const int64_t frameIndex = static_cast<int64_t>(std::llround((frameTime - streamStartTime) * VIDEO_FPS));
-						if (frameIndex >= 0 && targetFrameHint.load() >= 0)
+						if (targetFrameHint.load() < 0)
+                                                        codecContext->skip_frame = AVDISCARD_DEFAULT;
+                                                if (frameIndex >= 0 && targetFrameHint.load() >= 0)
                                                 {
                                                         const int64_t lateBy = targetFrameHint.load() - frameIndex;
                                                         codecContext->skip_frame = lateBy > 24 ? AVDISCARD_NONREF : AVDISCARD_DEFAULT;
@@ -512,9 +514,8 @@ namespace MikuMikuWorld
 			if (textureValid && videoFile != textureFile)
                                 textureValid = false;
                         const bool pathChanged = videoFile != filename;
-			const bool jumped = started && (isPlaying
-				? std::abs(timelineTime - lastRequestedTime) > 0.25
-				: std::abs(timelineTime - lastRequestedTime) > 0.02);
+			const double jumpLimit = waitForTargetFrame ? 0.5 : (isPlaying ? 0.25 : 0.02);
+                        const bool jumped = started && std::abs(timelineTime - lastRequestedTime) > jumpLimit;
 			if (videoFile.empty())
 			{
 				stopStream();
@@ -533,7 +534,7 @@ namespace MikuMikuWorld
 			const double clampedTime = videoDurationSec > 0.0 ? std::min(timelineTime, videoDurationSec) : timelineTime;
                         const uint64_t targetFrame = static_cast<uint64_t>(std::max(0.0, std::floor((clampedTime - streamStartTime) * VIDEO_FPS)));
 #ifdef __ANDROID__
-                        targetFrameHint.store(static_cast<int64_t>(targetFrame));
+                        targetFrameHint.store(waitForTargetFrame ? -1 : static_cast<int64_t>(targetFrame));
                         if (isPlaying && !waitForTargetFrame && hasFrameForStream && targetFrame > currentFrameIndex + 180)
                         {
                                 const auto resyncNow = std::chrono::steady_clock::now();
@@ -551,7 +552,7 @@ namespace MikuMikuWorld
 			while (true)
 			{
 				std::unique_lock<std::mutex> lock(frameMutex);
-				while (!frameQueue.empty() && frameQueue.front().index <= targetFrame)
+				while (!frameQueue.empty() && (frameQueue.front().index <= targetFrame || !hasFrameForStream))
 				{
 					currentFrameIndex = frameQueue.front().index;
 					hasFrameForStream = true;
@@ -560,7 +561,8 @@ namespace MikuMikuWorld
 					++decodedFrames;
 					changed = true;
 				}
-				const bool targetAvailable = hasFrameForStream && currentFrameIndex >= targetFrame;
+				const bool nextPastTarget = !frameQueue.empty() && frameQueue.front().index > targetFrame;
+                                const bool targetAvailable = hasFrameForStream && (currentFrameIndex >= targetFrame || nextPastTarget);
 				if (!waitForTargetFrame || targetAvailable || readerFinished || readerStop)
 					break;
 				frameSpaceAvailable.notify_one();
